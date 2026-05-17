@@ -61,7 +61,7 @@
   - 可见性过滤正确
 
 ### TASK-004: 回合阶段系统完善与测试
-- **状态**: ⬜ 待开始
+- **状态**: ✅ 完成
 - **依赖**: TASK-002
 - **包**: `packages/core`
 - **文件**: `src/phases.ts`, `src/phases.test.ts`
