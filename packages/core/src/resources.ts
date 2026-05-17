@@ -59,12 +59,12 @@ export class ResourceManager {
   /**
    * Modify a resource value (emits RESOURCE_CHANGED event).
    */
-  modify(
+  async modify(
     playerId: PlayerId,
     resourceId: ResourceId,
     delta: number,
     source?: string
-  ): number {
+  ): Promise<number> {
     const key = `${playerId}:${resourceId}`;
     const resource = this.resources.get(key);
     if (!resource) return 0;
@@ -73,8 +73,7 @@ export class ResourceManager {
     resource.current = Math.max(resource.min, Math.min(resource.max, resource.current + delta));
     const newValue = resource.current;
 
-    // Emit event
-    this.eventBus.emit({
+    await this.eventBus.emit({
       id: `res_${Date.now()}`,
       type: EventType.RESOURCE_CHANGED,
       source: source ?? "system",
@@ -96,12 +95,12 @@ export class ResourceManager {
   /**
    * Set a resource to an absolute value.
    */
-  set(
+  async set(
     playerId: PlayerId,
     resourceId: ResourceId,
     value: number,
     source?: string
-  ): number {
+  ): Promise<number> {
     const current = this.getValue(playerId, resourceId) ?? 0;
     return this.modify(playerId, resourceId, value - current, source);
   }
@@ -109,14 +108,58 @@ export class ResourceManager {
   /**
    * Apply per-turn regeneration for all players.
    */
-  applyRegen(playerIds: PlayerId[]): void {
+  async applyRegen(playerIds: PlayerId[]): Promise<void> {
     for (const playerId of playerIds) {
       for (const [resourceId, def] of this.definitions) {
         if (def.regenPerTurn && def.regenPerTurn !== 0) {
-          this.modify(playerId, resourceId, def.regenPerTurn, "regen");
+          await this.modify(playerId, resourceId, def.regenPerTurn, "regen");
         }
       }
     }
+  }
+
+  /**
+   * Get all resource definitions.
+   */
+  getDefinitions(): Map<ResourceId, ResourceDefinition> {
+    return new Map(this.definitions);
+  }
+
+  /**
+   * Get a single resource definition.
+   */
+  getDefinition(resourceId: ResourceId): ResourceDefinition | undefined {
+    return this.definitions.get(resourceId);
+  }
+
+  /**
+   * Check if a resource has been initialized for a player.
+   */
+  isInitialized(playerId: PlayerId, resourceId: ResourceId): boolean {
+    return this.resources.has(`${playerId}:${resourceId}`);
+  }
+
+  /**
+   * Reset a resource to its default value.
+   */
+  resetToDefault(playerId: PlayerId, resourceId: ResourceId): number | undefined {
+    const def = this.definitions.get(resourceId);
+    const key = `${playerId}:${resourceId}`;
+    const resource = this.resources.get(key);
+    if (!def || !resource) return undefined;
+    resource.current = def.defaultValue;
+    return resource.current;
+  }
+
+  /**
+   * Get the number of initialized resources for a player.
+   */
+  getPlayerResourceCount(playerId: PlayerId): number {
+    let count = 0;
+    for (const key of this.resources.keys()) {
+      if (key.startsWith(`${playerId}:`)) count++;
+    }
+    return count;
   }
 
   /**

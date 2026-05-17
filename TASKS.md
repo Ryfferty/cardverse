@@ -78,7 +78,7 @@
   - 跳过阶段正常工作
 
 ### TASK-005: 资源系统完善与测试
-- **状态**: ⬜ 待开始
+- **状态**: ✅ 完成
 - **依赖**: TASK-001
 - **包**: `packages/core`
 - **文件**: `src/resources.ts`, `src/resources.test.ts`
