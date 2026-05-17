@@ -8,7 +8,7 @@
 ## 阶段 1：核心引擎完善
 
 ### TASK-001: 事件系统完善与测试
-- **状态**: ⏳ 进行中
+- **状态**: ✅ 完成
 - **包**: `packages/core`
 - **文件**: `src/events.ts`, `src/events.test.ts`
 - **描述**: 完善 EventBus 和 EventStack 的实现，编写完整测试
