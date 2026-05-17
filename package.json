@@ -1,0 +1,19 @@
+{
+  "name": "cardverse",
+  "version": "0.1.0",
+  "private": true,
+  "description": "通用卡牌游戏引擎 — CardVerse",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "clean": "pnpm -r clean"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^5.9.3"
+  }
+}

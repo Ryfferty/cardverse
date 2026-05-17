@@ -1,0 +1,7 @@
+{
+  "name": "@cardverse/deck-sanguosha",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "三国杀卡组 — CardVerse 验证用"
+}
