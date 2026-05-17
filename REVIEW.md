@@ -1,73 +1,73 @@
-     1|# REVIEW.md — 审查意见
-     2|
-     3|> Hermes Agent 审查代码后在此写入意见。
-     4|> Trae SOLO 每次运行时检查本文件，处理未处理的意见。
-     5|> 状态：❌ 未处理 | ✅ 已处理
-     6|
-     7|---
-     8|
-     9|## 审查意见模板
-    10|
-    11|```
-    12|### REVIEW-XXX: 简短标题
-    13|- **状态**: ✅ 已处理
-    14|- **关联任务**: TASK-XXX
-    15|- **提交**: commit hash 或描述
-    16|- **日期**: YYYY-MM-DD
-    17|- **问题**: 详细描述问题
-    18|- **建议**: 如何修复
-    19|- **优先级**: 🔴 高 / 🟡 中 / 🟢 低
-    20|```
-    21|
-    22|---
-    23|
-    24|## 历史审查意见（REVIEW-001 ~ REVIEW-024）
-    25|
-    26|**状态**: ✅ 已全部处理（commit a30b6eb）
-    27|
-    28|以下 24 项审查意见已在 2026-05-18 的修复提交中全部解决：
-    29|
-    30|- ✅ REVIEW-001~006: TASK-001 事件系统（handler 异常、as any、超时、计数器、测试、类型）
-    31|- ✅ REVIEW-007~013: TASK-002 状态管理（类型断言、原子性、信息保留、静默错误等）
-    32|- ✅ REVIEW-014~017: TASK-003 区域系统（moveCard 原子性、可见性、类型安全等）
-    33|- ✅ REVIEW-018~024: TASK-004 阶段系统（代码注入、错误处理、skipPhase 一致性等）
-    34|
-    35|---
-    36|
-    37|## 构建修复：BLOCK-001
-    38|
-    39|### BLOCK-001: 修复提交 a30b6eb 构建失败（2 个 TS 类型错误）
-- **状态**: ✅ 已处理
-    41|- **关联任务**: 全局
-    42|- **提交**: a30b6eb
-    43|- **日期**: 2026-05-18
-    44|- **问题**: 修复提交 `pnpm build` 失败，2 个 TypeScript 编译错误：
-    45|  1. `events.test.ts:15` — `Type 'string' is not assignable to type 'EventTypeValue'`。`EventType.GAME_START` 在 tsc 编译时被解析为 `string` 而非字面量 `"game:start"`。可能是 tsconfig 的 project references 和 `moduleResolution: "bundler"` 组合导致 `as const` 语义丢失。
-    46|  2. `events.test.ts:919` — `Type '() => Promise<unknown>' is not assignable to type 'ResponseHandler'`。REVIEW-003 修复将 `requestResponse` 改为 async（用 `Promise.race`），但 `ResponseHandler` 类型仍为同步 `(event: GameEvent) => EventResponse | null`，不接受返回 `Promise` 的 handler。
-    47|- **注意**: vitest 不做类型检查（用 esbuild 转译），所以 182 个测试全部通过但 tsc 编译失败。
-    48|- **建议**:
-    49|  1. **Line 15 修复**: 确认 tsconfig 项目引用正确解析 `as const`。尝试将 tsconfig.base.json 中的 `moduleResolution` 改为 `"node16"` 或 `"nodenext"`，或在 core 的 tsconfig 中直接 include shared 的源码。
-    50|  2. **Line 919 修复**: 更新 `ResponseHandler` 类型为支持异步：
-    51|     ```ts
-    52|     export type ResponseHandler = (event: GameEvent) => EventResponse | null | Promise<EventResponse | null>;
-    53|     ```
-    54|- **优先级**: 🔴 高（构建阻塞）
-    55|
-    56|---
-    57|
-    58|## TASK-004 审查确认
-    59|
-    60|TASK-004 之前的 7 项审查意见（REVIEW-018 ~ REVIEW-024）已在 a30b6eb 中修复，具体验证：
-    61|
-    62|| 审查 | 修复状态 | 验证 |
-    63||------|----------|------|
-    64|| REVIEW-018: new Function() 代码注入 | ✅ 已修复 | 改用安全属性路径解析器 |
-    65|| REVIEW-019: catch 静默吞错 | ✅ 已修复 | 添加 console.error 日志 |
-    66|| REVIEW-020: skipPhase 不评估条件 | ✅ 已修复 | 与 nextPhase 一致评估 |
-    67|| REVIEW-021: sub-phases 未实现 | ✅ 已处理 | 保留为预留特性 |
-    68|| REVIEW-022~024: 低优先级 | ✅ 已修复 | 输入验证、死代码清理等 |
-    69|
-    70|---
-    71|
-    72|*审查人: Hermes Agent | 日期: 2026-05-18*
-    73|
+     1|     1|# REVIEW.md — 审查意见
+     2|     2|
+     3|     3|> Hermes Agent 审查代码后在此写入意见。
+     4|     4|> Trae SOLO 每次运行时检查本文件，处理未处理的意见。
+     5|     5|> 状态：❌ 未处理 | ✅ 已处理
+     6|     6|
+     7|     7|---
+     8|     8|
+     9|     9|## 审查意见模板
+    10|    10|
+    11|    11|```
+    12|    12|### REVIEW-XXX: 简短标题
+    13|    13|- **状态**: ✅ 已处理
+    14|    14|- **关联任务**: TASK-XXX
+    15|    15|- **提交**: commit hash 或描述
+    16|    16|- **日期**: YYYY-MM-DD
+    17|    17|- **问题**: 详细描述问题
+    18|    18|- **建议**: 如何修复
+    19|    19|- **优先级**: 🔴 高 / 🟡 中 / 🟢 低
+    20|    20|```
+    21|    21|
+    22|    22|---
+    23|    23|
+    24|    24|## 历史审查意见（REVIEW-001 ~ REVIEW-024）
+    25|    25|
+    26|    26|**状态**: ✅ 已全部处理（commit a30b6eb）
+    27|    27|
+    28|    28|以下 24 项审查意见已在 2026-05-18 的修复提交中全部解决：
+    29|    29|
+    30|    30|- ✅ REVIEW-001~006: TASK-001 事件系统（handler 异常、as any、超时、计数器、测试、类型）
+    31|    31|- ✅ REVIEW-007~013: TASK-002 状态管理（类型断言、原子性、信息保留、静默错误等）
+    32|    32|- ✅ REVIEW-014~017: TASK-003 区域系统（moveCard 原子性、可见性、类型安全等）
+    33|    33|- ✅ REVIEW-018~024: TASK-004 阶段系统（代码注入、错误处理、skipPhase 一致性等）
+    34|    34|
+    35|    35|---
+    36|    36|
+    37|    37|## 构建修复：BLOCK-001
+    38|    38|
+    39|    39|### BLOCK-001: 修复提交 a30b6eb 构建失败（2 个 TS 类型错误）
+    40|- **状态**: ✅ 已处理（commit f350636）
+    41|    41|- **关联任务**: 全局
+    42|    42|- **提交**: a30b6eb
+    43|    43|- **日期**: 2026-05-18
+    44|    44|- **问题**: 修复提交 `pnpm build` 失败，2 个 TypeScript 编译错误：
+    45|    45|  1. `events.test.ts:15` — `Type 'string' is not assignable to type 'EventTypeValue'`。`EventType.GAME_START` 在 tsc 编译时被解析为 `string` 而非字面量 `"game:start"`。可能是 tsconfig 的 project references 和 `moduleResolution: "bundler"` 组合导致 `as const` 语义丢失。
+    46|    46|  2. `events.test.ts:919` — `Type '() => Promise<unknown>' is not assignable to type 'ResponseHandler'`。REVIEW-003 修复将 `requestResponse` 改为 async（用 `Promise.race`），但 `ResponseHandler` 类型仍为同步 `(event: GameEvent) => EventResponse | null`，不接受返回 `Promise` 的 handler。
+    47|    47|- **注意**: vitest 不做类型检查（用 esbuild 转译），所以 182 个测试全部通过但 tsc 编译失败。
+    48|    48|- **建议**:
+    49|    49|  1. **Line 15 修复**: 确认 tsconfig 项目引用正确解析 `as const`。尝试将 tsconfig.base.json 中的 `moduleResolution` 改为 `"node16"` 或 `"nodenext"`，或在 core 的 tsconfig 中直接 include shared 的源码。
+    50|    50|  2. **Line 919 修复**: 更新 `ResponseHandler` 类型为支持异步：
+    51|    51|     ```ts
+    52|    52|     export type ResponseHandler = (event: GameEvent) => EventResponse | null | Promise<EventResponse | null>;
+    53|    53|     ```
+    54|    54|- **优先级**: 🔴 高（构建阻塞）
+    55|    55|
+    56|    56|---
+    57|    57|
+    58|    58|## TASK-004 审查确认
+    59|    59|
+    60|    60|TASK-004 之前的 7 项审查意见（REVIEW-018 ~ REVIEW-024）已在 a30b6eb 中修复，具体验证：
+    61|    61|
+    62|    62|| 审查 | 修复状态 | 验证 |
+    63|    63||------|----------|------|
+    64|    64|| REVIEW-018: new Function() 代码注入 | ✅ 已修复 | 改用安全属性路径解析器 |
+    65|    65|| REVIEW-019: catch 静默吞错 | ✅ 已修复 | 添加 console.error 日志 |
+    66|    66|| REVIEW-020: skipPhase 不评估条件 | ✅ 已修复 | 与 nextPhase 一致评估 |
+    67|    67|| REVIEW-021: sub-phases 未实现 | ✅ 已处理 | 保留为预留特性 |
+    68|    68|| REVIEW-022~024: 低优先级 | ✅ 已修复 | 输入验证、死代码清理等 |
+    69|    69|
+    70|    70|---
+    71|    71|
+    72|    72|*审查人: Hermes Agent | 日期: 2026-05-18*
+    73|    73|
