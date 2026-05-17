@@ -11,13 +11,13 @@ function generateEventId(): string {
 export class EventStack {
   private stack: GameEvent[] = [];
 
-  push(event: Omit<GameEvent, "id" | "timestamp" | "stackDepth">): GameEvent {
-    const fullEvent: GameEvent = {
+  push(event: Omit<GameEvent, "id" | "timestamp" | "stackDepth" | "type"> & { type: string }): GameEvent {
+    const fullEvent = {
       ...event,
       id: generateEventId(),
       timestamp: Date.now(),
       stackDepth: this.stack.length,
-    };
+    } as GameEvent;
     this.stack.push(fullEvent);
     return fullEvent;
   }
@@ -51,7 +51,7 @@ export class EventStack {
  * EventBus — publish/subscribe for game events with response support.
  */
 export type EventHandler = (event: GameEvent) => void | Promise<void>;
-export type ResponseHandler = (event: GameEvent) => EventResponse | null;
+export type ResponseHandler = (event: GameEvent) => EventResponse | null | Promise<EventResponse | null>;
 
 export class EventBus {
   private handlers = new Map<string, Set<EventHandler>>();

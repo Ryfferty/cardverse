@@ -10,7 +10,9 @@ type MockEventOverrides = {
   data?: Record<string, unknown>;
 };
 
-function createMockEvent(overrides: MockEventOverrides = {}): Omit<import("@cardverse/shared").GameEvent, "id" | "timestamp" | "stackDepth"> {
+function createMockEvent(
+  overrides: MockEventOverrides = {}
+): Omit<import("@cardverse/shared").GameEvent, "id" | "timestamp" | "stackDepth" | "type"> & { type: string } {
   return {
     type: EventType.GAME_START,
     source: "player1",
