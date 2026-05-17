@@ -110,4 +110,60 @@ export class PhaseManager {
   getAllPhases(): PhaseDefinition[] {
     return [...this.phases];
   }
+
+  /**
+   * Reset the phase manager to initial state.
+   */
+  reset(): void {
+    this.phases = [];
+    this.currentIndex = 0;
+    this.turnNumber = 0;
+    this.currentPlayerId = "";
+  }
+
+  /**
+   * Jump to a specific phase index.
+   * Returns the new current phase, or undefined if out of bounds.
+   */
+  goToPhase(index: number): PhaseDefinition | undefined {
+    if (index < 0 || index >= this.phases.length) return undefined;
+    this.currentIndex = index;
+    return this.phases[this.currentIndex];
+  }
+
+  /**
+   * Get all phases that haven't been executed yet in this turn.
+   */
+  getRemainingPhases(gameState?: Record<string, unknown>): PhaseDefinition[] {
+    const remaining: PhaseDefinition[] = [];
+    for (let i = this.currentIndex + 1; i < this.phases.length; i++) {
+      const phase = this.phases[i];
+      if (phase.condition && gameState) {
+        if (!this.evaluateCondition(phase.condition, gameState)) continue;
+      }
+      remaining.push(phase);
+    }
+    return remaining;
+  }
+
+  /**
+   * Check if a phase with the given ID exists.
+   */
+  hasPhase(id: string): boolean {
+    return this.phases.some((p) => p.id === id);
+  }
+
+  /**
+   * Find a phase by its ID.
+   */
+  getPhaseById(id: string): PhaseDefinition | undefined {
+    return this.phases.find((p) => p.id === id);
+  }
+
+  /**
+   * Check if any phase is currently active (not at or beyond end).
+   */
+  hasActivePhase(): boolean {
+    return this.currentIndex >= 0 && this.currentIndex < this.phases.length;
+  }
 }
