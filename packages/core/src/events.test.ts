@@ -185,7 +185,14 @@ describe("EventStack", () => {
       stack.push(createMockEvent());
       const array = stack.toArray();
 
-      array.push({} as any);
+      array.push({
+        type: EventType.GAME_START,
+        source: "player1",
+        data: {},
+        id: "fake_id",
+        timestamp: 0,
+        stackDepth: 99,
+      });
 
       expect(stack.size()).toBe(1);
     });
@@ -433,7 +440,7 @@ describe("EventBus", () => {
   });
 
   describe("onResponse/removeResponseHandler", () => {
-    it("should register and call response handler", () => {
+    it("should register and call response handler", async () => {
       const responseHandler: ResponseHandler = (event) => ({
         playerId: "player1",
         action: "respond",
@@ -448,7 +455,7 @@ describe("EventBus", () => {
         timestamp: Date.now(),
         stackDepth: 0,
       };
-      const result = eventBus.requestResponse(EventType.RESPONSE_REQUESTED, event);
+      const result = await eventBus.requestResponse(EventType.RESPONSE_REQUESTED, event);
 
       expect(result).toEqual({
         playerId: "player1",
@@ -457,7 +464,7 @@ describe("EventBus", () => {
       });
     });
 
-    it("should return null when no handler registered", () => {
+    it("should return null when no handler registered", async () => {
       const event: import("@cardverse/shared").GameEvent = {
         id: "evt_1",
         type: EventType.RESPONSE_REQUESTED,
@@ -465,12 +472,12 @@ describe("EventBus", () => {
         timestamp: Date.now(),
         stackDepth: 0,
       };
-      const result = eventBus.requestResponse(EventType.RESPONSE_REQUESTED, event);
+      const result = await eventBus.requestResponse(EventType.RESPONSE_REQUESTED, event);
 
       expect(result).toBeNull();
     });
 
-    it("should remove response handler", () => {
+    it("should remove response handler", async () => {
       const responseHandler: ResponseHandler = () => ({
         playerId: "player1",
         action: "respond",
@@ -485,12 +492,12 @@ describe("EventBus", () => {
         timestamp: Date.now(),
         stackDepth: 0,
       };
-      const result = eventBus.requestResponse(EventType.RESPONSE_REQUESTED, event);
+      const result = await eventBus.requestResponse(EventType.RESPONSE_REQUESTED, event);
 
       expect(result).toBeNull();
     });
 
-    it("should allow response handler to return null (timeout simulation)", () => {
+    it("should allow response handler to return null (timeout simulation)", async () => {
       const responseHandler: ResponseHandler = () => null;
       eventBus.onResponse(EventType.RESPONSE_REQUESTED, responseHandler);
 
@@ -501,14 +508,14 @@ describe("EventBus", () => {
         timestamp: Date.now(),
         stackDepth: 0,
       };
-      const result = eventBus.requestResponse(EventType.RESPONSE_REQUESTED, event);
+      const result = await eventBus.requestResponse(EventType.RESPONSE_REQUESTED, event);
 
       expect(result).toBeNull();
     });
   });
 
   describe("requestResponse", () => {
-    it("should pass event data to response handler", () => {
+    it("should pass event data to response handler", async () => {
       let receivedEvent: import("@cardverse/shared").GameEvent | null = null;
       const responseHandler: ResponseHandler = (event) => {
         receivedEvent = event;
@@ -525,14 +532,14 @@ describe("EventBus", () => {
         timestamp: Date.now(),
         stackDepth: 1,
       };
-      eventBus.requestResponse(EventType.DAMAGE_DEALT, event);
+      await eventBus.requestResponse(EventType.DAMAGE_DEALT, event);
 
       expect(receivedEvent).not.toBeNull();
       expect(receivedEvent!.data).toEqual({ damage: 3 });
       expect(receivedEvent!.source).toBe("player2");
     });
 
-    it("should support different event types for responses", () => {
+    it("should support different event types for responses", async () => {
       const shaHandler: ResponseHandler = () => ({
         playerId: "player1",
         cardId: "shan_1",
@@ -547,7 +554,7 @@ describe("EventBus", () => {
         timestamp: Date.now(),
         stackDepth: 0,
       };
-      const result = eventBus.requestResponse(EventType.RESPONSE_REQUESTED, event);
+      const result = await eventBus.requestResponse(EventType.RESPONSE_REQUESTED, event);
 
       expect(result?.cardId).toBe("shan_1");
       expect(result?.action).toBe("play");
@@ -647,7 +654,7 @@ describe("EventBus", () => {
       expect(handler2).not.toHaveBeenCalled();
     });
 
-    it("should remove all response handlers", () => {
+    it("should remove all response handlers", async () => {
       const responseHandler: ResponseHandler = () => ({
         playerId: "player1",
         action: "respond",
@@ -663,9 +670,113 @@ describe("EventBus", () => {
         timestamp: Date.now(),
         stackDepth: 0,
       };
-      const result = eventBus.requestResponse(EventType.RESPONSE_REQUESTED, event);
+      const result = await eventBus.requestResponse(EventType.RESPONSE_REQUESTED, event);
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe("error handling", () => {
+    it("should continue execution when a handler throws", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const handlerGood = vi.fn();
+      const handlerBad = vi.fn(() => {
+        throw new Error("Handler error");
+      });
+
+      eventBus.on(EventType.GAME_START, handlerBad);
+      eventBus.on(EventType.GAME_START, handlerGood);
+      eventBus.on("*", handlerGood);
+
+      const event: import("@cardverse/shared").GameEvent = {
+        id: "evt_err",
+        type: EventType.GAME_START,
+        data: {},
+        timestamp: Date.now(),
+        stackDepth: 0,
+      };
+      await eventBus.emit(event);
+
+      expect(handlerBad).toHaveBeenCalled();
+      expect(handlerGood).toHaveBeenCalledTimes(2); // specific + wildcard
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it("should not crash when wildcard handler throws", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const specificHandler = vi.fn();
+      const wildcardBad = vi.fn(() => {
+        throw new Error("Wildcard error");
+      });
+
+      eventBus.on(EventType.GAME_START, specificHandler);
+      eventBus.on("*", wildcardBad);
+
+      const event: import("@cardverse/shared").GameEvent = {
+        id: "evt_err",
+        type: EventType.GAME_START,
+        data: {},
+        timestamp: Date.now(),
+        stackDepth: 0,
+      };
+      await eventBus.emit(event);
+
+      expect(specificHandler).toHaveBeenCalled();
+      expect(wildcardBad).toHaveBeenCalled();
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe("edge cases", () => {
+    it("should not crash when emit has no handlers", async () => {
+      const event: import("@cardverse/shared").GameEvent = {
+        id: "evt_1",
+        type: EventType.GAME_START,
+        data: {},
+        timestamp: Date.now(),
+        stackDepth: 0,
+      };
+      await expect(eventBus.emit(event)).resolves.toBeUndefined();
+    });
+
+    it("should not crash when off is called with unregistered handler", () => {
+      const handler = vi.fn();
+      expect(() => eventBus.off(EventType.GAME_START, handler)).not.toThrow();
+    });
+
+    it("should overwrite response handler when onResponse called again", async () => {
+      const handler1: ResponseHandler = () => ({ playerId: "p1", action: "first" });
+      const handler2: ResponseHandler = () => ({ playerId: "p1", action: "second" });
+
+      eventBus.onResponse(EventType.RESPONSE_REQUESTED, handler1);
+      eventBus.onResponse(EventType.RESPONSE_REQUESTED, handler2);
+
+      const event: import("@cardverse/shared").GameEvent = {
+        id: "evt_1",
+        type: EventType.RESPONSE_REQUESTED,
+        data: {},
+        timestamp: Date.now(),
+        stackDepth: 0,
+      };
+      const result = await eventBus.requestResponse(EventType.RESPONSE_REQUESTED, event);
+      expect(result?.action).toBe("second");
+    });
+
+    it("should handle requestResponse timeout with valid handler", async () => {
+      const fastHandler: ResponseHandler = () => ({ playerId: "p1", action: "fast" });
+      eventBus.onResponse(EventType.RESPONSE_REQUESTED, fastHandler);
+
+      const event: import("@cardverse/shared").GameEvent = {
+        id: "evt_1",
+        type: EventType.RESPONSE_REQUESTED,
+        data: {},
+        timestamp: Date.now(),
+        stackDepth: 0,
+      };
+      const result = await eventBus.requestResponse(EventType.RESPONSE_REQUESTED, event, 5000);
+      expect(result?.action).toBe("fast");
     });
   });
 
@@ -787,7 +898,7 @@ describe("EventStack + EventBus Integration", () => {
     expect(responses).toContain(`Given: ${response.id}`);
   });
 
-  it("should support response timeout simulation", () => {
+  it("should support response timeout simulation", async () => {
     const responseHandler: ResponseHandler = () => null;
     eventBus.onResponse(EventType.RESPONSE_REQUESTED, responseHandler);
 
@@ -799,10 +910,31 @@ describe("EventStack + EventBus Integration", () => {
       stackDepth: 0,
     };
 
-    const result = eventBus.requestResponse(EventType.RESPONSE_REQUESTED, event);
+    const result = await eventBus.requestResponse(EventType.RESPONSE_REQUESTED, event);
 
     expect(result).toBeNull();
   });
+
+  it("should timeout requestResponse with setTimeout", async () => {
+      const slowHandler: ResponseHandler = () => {
+        return new Promise((resolve) => {
+          setTimeout(() => resolve({ playerId: "player1", action: "slow" }), 200);
+        });
+      };
+      eventBus.onResponse(EventType.RESPONSE_REQUESTED, slowHandler);
+
+      const event: import("@cardverse/shared").GameEvent = {
+        id: "evt_timeout",
+        type: EventType.RESPONSE_REQUESTED,
+        data: {},
+        timestamp: Date.now(),
+        stackDepth: 0,
+      };
+
+      const result = await eventBus.requestResponse(EventType.RESPONSE_REQUESTED, event, 10);
+      // The handler resolves after 200ms, timeout is 10ms, so should return null
+      expect(result).toBeNull();
+    });
 
   it("should simulate complete card play flow", async () => {
     const eventLog: import("@cardverse/shared").GameEvent[] = [];
@@ -900,7 +1032,7 @@ describe("EventStack + EventBus Integration", () => {
     };
     await eventBus.emit(event);
 
-    const response = eventBus.requestResponse(EventType.RESPONSE_REQUESTED, event);
+    const response = await eventBus.requestResponse(EventType.RESPONSE_REQUESTED, event);
     expect(response).toBeNull();
   });
 });

@@ -9,6 +9,7 @@ import {
   type ZoneDefinition,
   type ResourceDefinition,
   type PhaseDefinition,
+  type EventTypeValue,
   EventType,
 } from "@cardverse/shared";
 
@@ -150,7 +151,7 @@ describe("StateManager", () => {
 
   // Helper to create event
   const createEvent = (
-    type: string,
+    type: EventTypeValue,
     data: Record<string, unknown>,
     source?: string,
     target?: string
@@ -519,7 +520,7 @@ describe("StateManager", () => {
       const manager = new StateManager(initialState);
       const stateBefore = manager.getCurrentState();
 
-      const event = createEvent("unknown:event", {});
+      const event = createEvent("unknown:event" as EventTypeValue, {});
       const newState = manager.applyEvent(event);
 
       expect(newState).toEqual(stateBefore);
@@ -541,6 +542,18 @@ describe("StateManager", () => {
       // Player 2's hand should be hidden
       const player2 = filteredState.players.get("player2");
       expect(player2?.zones.get("hand")?.cards).toEqual([]);
+    });
+
+    it("should preserve opponent handCount for visibility", () => {
+      const initialState = createInitialState();
+      const manager = new StateManager(initialState);
+
+      const filteredState = manager.getStateForPlayer("player1");
+
+      // Player 2's hand cards are hidden, but handCount remains
+      const player2 = filteredState.players.get("player2");
+      expect(player2?.zones.get("hand")?.cards).toEqual([]);
+      expect(player2?.handCount).toBe(3);
     });
 
     it("should hide face-down global zones", () => {

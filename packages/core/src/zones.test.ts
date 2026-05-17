@@ -241,8 +241,8 @@ describe("ZoneManager", () => {
       }
       const result = manager.moveCard("global:deck", "player:player1:field", "card_to_move");
       expect(result).toBe(false);
-      // Card should still be in deck (removed then failed to add)
-      expect(manager.getCards("global:deck")).not.toContain("card_to_move");
+      // Card should still be in deck (atomic operation)
+      expect(manager.getCards("global:deck")).toContain("card_to_move");
     });
   });
 

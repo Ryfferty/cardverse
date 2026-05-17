@@ -51,7 +51,7 @@ export class ZoneManager {
    * Get all cards in a zone.
    */
   getCards(key: string): CardInstanceId[] {
-    return this.zones.get(key)?.cards ?? [];
+    return [...(this.zones.get(key)?.cards ?? [])];
   }
 
   /**
@@ -84,7 +84,8 @@ export class ZoneManager {
   }
 
   /**
-   * Move a card between zones.
+   * Move a card between zones atomically.
+   * All preconditions are checked before any mutation occurs.
    */
   moveCard(
     fromKey: string,
@@ -92,8 +93,25 @@ export class ZoneManager {
     cardId: CardInstanceId,
     position?: number
   ): boolean {
-    if (!this.removeCard(fromKey, cardId)) return false;
-    return this.addCard(toKey, cardId, position);
+    const fromZone = this.zones.get(fromKey);
+    const toZone = this.zones.get(toKey);
+    if (!fromZone || !toZone) return false;
+    const index = fromZone.cards.indexOf(cardId);
+    if (index === -1) return false;
+    if (
+      toZone.definition.maxSize !== undefined &&
+      toZone.cards.length >= toZone.definition.maxSize
+    ) {
+      return false;
+    }
+
+    fromZone.cards.splice(index, 1);
+    if (position !== undefined) {
+      toZone.cards.splice(position, 0, cardId);
+    } else {
+      toZone.cards.push(cardId);
+    }
+    return true;
   }
 
   /**
@@ -116,8 +134,14 @@ export class ZoneManager {
     for (const [key, zone] of this.zones) {
       if (zone.definition.visibility === "all") {
         visible.push(key);
-      } else if (zone.definition.visibility === "owner" && zone.playerId === playerId) {
-        visible.push(key);
+      } else if (zone.definition.visibility === "owner") {
+        if (zone.playerId === undefined) {
+          console.warn(`ZoneManager: global zone "${key}" has visibility "owner" but no owning player.`);
+          continue;
+        }
+        if (zone.playerId === playerId) {
+          visible.push(key);
+        }
       }
       // "none" zones are never visible
     }

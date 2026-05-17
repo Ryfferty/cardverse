@@ -1,8 +1,22 @@
 import { type PhaseDefinition, type TurnInfo, type PlayerId } from "@cardverse/shared";
 
+const VALID_KEY = /^[A-Za-z_][A-Za-z0-9_.]*$/;
+
 /**
- * PhaseManager — manages turn phases (configurable + dynamic sub-phases).
+ * Resolve a dotted property path (e.g., "state.hasExtraDraw") to a value.
+ * This replaces `new Function()` for safe evaluation of phase conditions.
  */
+function resolvePath(condition: string, state: Record<string, unknown>): unknown {
+  const parts = condition.split(".");
+  let current: unknown = state;
+  for (const part of parts) {
+    if (current === null || current === undefined) return undefined;
+    if (typeof current !== "object") return undefined;
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
+}
+
 export class PhaseManager {
   private phases: PhaseDefinition[] = [];
   private currentIndex = 0;
@@ -10,6 +24,11 @@ export class PhaseManager {
   private currentPlayerId: PlayerId = "";
 
   setPhases(phases: PhaseDefinition[]): void {
+    for (const phase of phases) {
+      if (!phase.id || !phase.name) {
+        console.warn("PhaseManager.setPhases: phase missing required id/name field", phase);
+      }
+    }
     this.phases = phases;
     this.currentIndex = 0;
   }
@@ -68,14 +87,24 @@ export class PhaseManager {
   }
 
   /**
-   * Skip the current phase.
+   * Skip the current phase, advancing past it and any condition-blocked phases.
    */
-  skipPhase(): boolean {
-    if (this.currentIndex < this.phases.length) {
-      this.currentIndex++;
+  skipPhase(gameState?: Record<string, unknown>): boolean {
+    if (this.currentIndex >= this.phases.length) {
+      return false;
+    }
+    this.currentIndex++;
+    while (this.currentIndex < this.phases.length) {
+      const phase = this.phases[this.currentIndex];
+      if (phase.condition && gameState) {
+        if (!this.evaluateCondition(phase.condition, gameState)) {
+          this.currentIndex++;
+          continue;
+        }
+      }
       return true;
     }
-    return false;
+    return true; // Turn over
   }
 
   /**
@@ -87,18 +116,21 @@ export class PhaseManager {
 
   /**
    * Evaluate a dynamic phase condition.
-   * This is a simplified evaluator — can be extended with proper expression parsing.
+   * Uses safe property path resolution instead of code execution.
    */
   private evaluateCondition(
     condition: string,
     gameState: Record<string, unknown>
   ): boolean {
     try {
-      // Simple evaluation: check if condition expression is truthy
-      // In production, use a sandboxed evaluator
-      const fn = new Function("state", `return ${condition}`);
-      return !!fn(gameState);
-    } catch {
+      if (!VALID_KEY.test(condition)) {
+        console.warn(`PhaseManager.evaluateCondition: invalid condition "${condition}"`);
+        return false;
+      }
+      const result = resolvePath(condition, gameState);
+      return !!result;
+    } catch (e) {
+      console.warn(`PhaseManager.evaluateCondition: error evaluating "${condition}"`, e);
       return false;
     }
   }

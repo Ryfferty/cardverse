@@ -1,9 +1,7 @@
 import { type GameEvent, type EventResponse, EventType } from "@cardverse/shared";
 
-let eventCounter = 0;
-
 function generateEventId(): string {
-  return `evt_${Date.now()}_${++eventCounter}`;
+  return `evt_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
 /**
@@ -80,28 +78,52 @@ export class EventBus {
   }
 
   async emit(event: GameEvent): Promise<void> {
+    const errors: Error[] = [];
     const handlers = this.handlers.get(event.type);
     if (handlers) {
       for (const handler of handlers) {
-        await handler(event);
+        try {
+          await handler(event);
+        } catch (e) {
+          errors.push(e as Error);
+        }
       }
     }
-    // Also emit to wildcard listeners
     const wildcardHandlers = this.handlers.get("*");
     if (wildcardHandlers) {
       for (const handler of wildcardHandlers) {
-        await handler(event);
+        try {
+          await handler(event);
+        } catch (e) {
+          errors.push(e as Error);
+        }
       }
+    }
+    if (errors.length > 0) {
+      console.error(`EventBus: ${errors.length} handler(s) threw for event ${event.type}:`, errors);
     }
   }
 
   /**
    * Request a response from a player for a given event.
-   * Returns the response or null if no handler registered.
+   * Returns the response or null if no handler registered or timeout reached.
    */
-  requestResponse(eventType: string, event: GameEvent): EventResponse | null {
+  async requestResponse(
+    eventType: string,
+    event: GameEvent,
+    timeoutMs?: number
+  ): Promise<EventResponse | null> {
     const handler = this.responseHandlers.get(eventType);
-    return handler ? handler(event) : null;
+    if (!handler) return null;
+
+    if (timeoutMs !== undefined) {
+      const result = await Promise.race([
+        Promise.resolve(handler(event)),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs)),
+      ]);
+      return result;
+    }
+    return handler(event);
   }
 
   clear(): void {

@@ -20,34 +20,19 @@ describe("PhaseManager", () => {
       id: "extra_draw",
       name: "额外摸牌阶段",
       auto: true,
-      condition: "state.hasExtraDraw",
+      condition: "hasExtraDraw",
     },
     { id: "draw", name: "摸牌阶段", auto: true },
     {
       id: "bonus_phase",
       name: "奖励阶段",
       auto: false,
-      condition: "state.bonusUnlocked",
+      condition: "bonusUnlocked",
     },
     { id: "play", name: "出牌阶段", auto: false },
     { id: "discard", name: "弃牌阶段", auto: true },
     { id: "end", name: "结束阶段", auto: true },
   ];
-
-  const phasesWithSub: PhaseDefinition[] = [
-    {
-      id: "start",
-      name: "开始阶段",
-      auto: true,
-      subPhases: [
-        { id: "start_enter", name: "进入", auto: true },
-        { id: "start_effect", name: "效果", auto: false },
-      ],
-    },
-    { id: "main", name: "主阶段", auto: false },
-    { id: "finish", name: "结束阶段", auto: true },
-  ];
-
   describe("setPhases", () => {
     it("should set phases and reset index", () => {
       manager = new PhaseManager();
@@ -154,7 +139,7 @@ describe("PhaseManager", () => {
 
     it("should skip phases whose condition evaluates to false", () => {
       manager.setPhases(dynamicPhases);
-      // prepare (index 0) → extra_draw (index 1, condition: state.hasExtraDraw)
+      // prepare (index 0) → extra_draw (index 1, condition: hasExtraDraw)
       // Should skip extra_draw if condition is false
       const next = manager.nextPhase({ hasExtraDraw: false });
       expect(next?.id).toBe("draw");
@@ -205,6 +190,24 @@ describe("PhaseManager", () => {
       manager.skipPhase();
       manager.skipPhase();
       expect(manager.getCurrentPhase()?.id).toBe("draw");
+    });
+
+    it("should skip conditional phases that evaluate false", () => {
+      manager.setPhases(dynamicPhases);
+      // prepare(0) → skip → judge(1) → draw(2) → skip(false) → play(4)
+      manager.skipPhase(); // prepare → judge
+      manager.skipPhase(); // judge → draw
+      manager.skipPhase({ extraDrawEnabled: false }); // draw → skip extra_draw(condition false) → skip bonus_phase(condition false) → play
+      expect(manager.getCurrentPhase()?.id).toBe("play");
+      expect(manager.getCurrentPhaseIndex()).toBe(4);
+    });
+
+    it("should not skip conditional phases that evaluate true", () => {
+      manager.setPhases(dynamicPhases);
+      // Start from prepare(0), skipPhase with gameState → arrives at extra_draw(1) (condition true)
+      manager.skipPhase({ hasExtraDraw: true });
+      expect(manager.getCurrentPhase()?.id).toBe("extra_draw");
+      expect(manager.getCurrentPhaseIndex()).toBe(1);
     });
   });
 
@@ -413,7 +416,7 @@ describe("PhaseManager", () => {
           id: "extra_draw",
           name: "额外摸牌",
           auto: true,
-          condition: "state.extraDrawEnabled",
+          condition: "extraDrawEnabled",
         },
         { id: "play", name: "出牌", auto: false },
         { id: "discard", name: "弃牌", auto: true },
@@ -454,7 +457,7 @@ describe("PhaseManager", () => {
       manager.nextPhase({ extraDrawEnabled: true }); // judge → draw
       expect(manager.getCurrentPhase()?.id).toBe("draw");
 
-      manager.nextPhase({ extraDrawEnabled: true }); // draw → extra_draw (condition true)
+      manager.nextPhase({ extraDrawEnabled: true }); // draw → extra_draw (condition: extraDrawEnabled true)
       expect(manager.getCurrentPhase()?.id).toBe("extra_draw");
 
       // Check remaining phases from extra_draw
@@ -463,8 +466,8 @@ describe("PhaseManager", () => {
       expect(remainingIds).toEqual(["play", "discard", "end"]);
 
       // Skip to discard
-      manager.skipPhase(); // extra_draw → play
-      manager.skipPhase(); // play → discard
+      manager.skipPhase({ extraDrawEnabled: true }); // extra_draw → play
+      manager.skipPhase({ extraDrawEnabled: true }); // play → discard
       expect(manager.getCurrentPhase()?.id).toBe("discard");
 
       // Jump to end with goToPhase

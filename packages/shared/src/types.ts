@@ -150,10 +150,12 @@ export const EventType = {
 
 export type EventTypeValue = (typeof EventType)[keyof typeof EventType];
 
-/** A game event */
+/** A game event.
+ *  For custom event types, cast through `as EventTypeValue` or
+ *  extend this interface to override the `type` field. */
 export interface GameEvent {
   id: string;
-  type: EventTypeValue | string;
+  type: EventTypeValue;
   source?: PlayerId;
   target?: PlayerId;
   data: Record<string, unknown>;
