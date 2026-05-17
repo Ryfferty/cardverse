@@ -127,4 +127,83 @@ export class ZoneManager {
   clear(): void {
     this.zones.clear();
   }
+
+  /**
+   * Get the number of cards in a zone.
+   */
+  getZoneSize(key: string): number {
+    return this.zones.get(key)?.cards.length ?? 0;
+  }
+
+  /**
+   * Check if a zone has any cards.
+   */
+  isEmpty(key: string): boolean {
+    return (this.zones.get(key)?.cards.length ?? 0) === 0;
+  }
+
+  /**
+   * Check if a zone exists.
+   */
+  hasZone(key: string): boolean {
+    return this.zones.has(key);
+  }
+
+  /**
+   * Get cards visible to a player, respecting zone visibility rules.
+   */
+  getVisibleCards(zoneKey: string, playerId: PlayerId): CardInstanceId[] {
+    const zone = this.zones.get(zoneKey);
+    if (!zone) return [];
+    const vis = zone.definition.visibility;
+    if (vis === "all") return zone.cards;
+    if (vis === "owner" && zone.playerId === playerId) return zone.cards;
+    return [];
+  }
+
+  /**
+   * Get all zone keys.
+   */
+  getAllZoneKeys(): string[] {
+    return Array.from(this.zones.keys());
+  }
+
+  /**
+   * List all global zones.
+   */
+  listGlobalZones(): ZoneState[] {
+    const result: ZoneState[] = [];
+    for (const [key, zone] of this.zones) {
+      if (key.startsWith("global:")) {
+        result.push(zone);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * List all zones owned by a specific player.
+   */
+  listPlayerZones(playerId: PlayerId): ZoneState[] {
+    const result: ZoneState[] = [];
+    for (const [key, zone] of this.zones) {
+      if (zone.playerId === playerId) {
+        result.push(zone);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Replace all cards in a zone (e.g., for initial deck setup).
+   */
+  setCards(key: string, cardIds: CardInstanceId[]): boolean {
+    const zone = this.zones.get(key);
+    if (!zone) return false;
+    if (zone.definition.maxSize && cardIds.length > zone.definition.maxSize) {
+      return false;
+    }
+    zone.cards = [...cardIds];
+    return true;
+  }
 }
