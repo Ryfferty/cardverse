@@ -69,5 +69,97 @@
     69|    69|
     70|    70|---
     71|    71|
-    72|    72|*审查人: Hermes Agent | 日期: 2026-05-18*
+    72|    72|---
+
+## TASK-006 预审查（Game 引擎整合）
+
+> 以下审查意见基于 TASK-006 开始前对 engine.ts 及相关模块的代码审查。
+> engine.ts 已存在骨架（195 行），但整合逻辑不完整且有多个 bug。
+
+### REVIEW-025: playCard 事件字段名与 StateManager reducer 不匹配
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-006
+- **文件**: `engine.ts:128-132`, `state.ts:182-184`
+- **日期**: 2026-05-18
+- **问题**: `playCard()` 发送事件 `{ data: { cardInstanceId, targets } }`，但 StateManager 的 CARD_PLAYED reducer 读取 `event.data.cardId` 和 `event.data.playerId`。字段名完全不匹配：`cardInstanceId` vs `cardId`，且 `playerId` 在 `event.source` 而非 `event.data` 中。**这会导致出牌时手牌不会被正确移除。**
+- **建议**: 统一字段名。推荐修改 engine.ts 的 playCard：
+  ```ts
+  data: { cardId: cardInstanceId, playerId, targets }
+  ```
+  或修改 state.ts reducer 使用 `cardInstanceId` 和 `event.source`。
+- **优先级**: 🔴 高（核心功能 bug）
+
+### REVIEW-026: addPlayer 使用 `as any` 绕过封装
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-006
+- **文件**: `engine.ts:91`
+- **日期**: 2026-05-18
+- **问题**: `(this.state as any).currentState = currentState` 直接操作 StateManager 的私有字段。StateManager 的 `getCurrentState()` 返回深拷贝，这里拿到拷贝修改后用 `as any` 写回，破坏了封装性和类型安全。
+- **建议**: 为 StateManager 添加 `addPlayer(player: PlayerState): void` 方法，或通过 GAME_START 事件的 data 携带初始玩家列表。初始化阶段（waiting 状态）可走专用初始化路径而非事件溯源。
+- **优先级**: 🔴 高（类型安全 / 架构）
+
+### REVIEW-027: respondToEvent 绕过状态管理
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-006
+- **文件**: `engine.ts:138-148`
+- **日期**: 2026-05-18
+- **问题**: `respondToEvent()` 直接调用 `eventBus.emit()` 而不经过 `emitAndApply()`。RESPONSE_GIVEN 事件不会进入 EventStack、不会被 StateManager 记录。这意味着响应操作对游戏状态不可见，replay 会丢失响应历史。
+- **建议**: 将 `respondToEvent` 改为使用 `emitAndApply()`，或至少将事件推入 EventStack 和 eventLog。
+- **优先级**: 🔴 高（事件溯源完整性）
+
+### REVIEW-028: 缺少回合流程整合方法
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-006
+- **文件**: `engine.ts`
+- **日期**: 2026-05-18
+- **问题**: Game 类缺少回合管理的核心方法：
+  - `startTurn()` / `endTurn()` — 回合开始/结束
+  - 阶段自动推进（PhaseManager.nextPhase → emit PHASE_START/PHASE_END → StateManager 联动）
+  - 资源再生触发（ResourceManager.applyRegen 在回合开始时）
+  - 玩家淘汰判定（HP <= 0 → PLAYER_ELIMINATED）
+  - 响应超时处理（requestResponse 的 timeout 机制）
+  当前 Game 只有 start/end/playCard/respond 四个动作，无法驱动完整游戏流程。
+- **建议**: 补充 `startTurn()`、`endTurn()`、`nextPhase()` 方法，实现 PhaseManager ↔ EventBus ↔ StateManager 的联动。参考 TASKS.md 的具体要求。
+- **优先级**: 🟡 中（TASK-006 核心交付物）
+
+### REVIEW-029: StateManager 与 ZoneManager 区域操作双轨制
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-006
+- **文件**: `state.ts:182-198`, `zones.ts`
+- **日期**: 2026-05-18
+- **问题**: StateManager 的 CARD_PLAYED/CARD_DRAWN/CARD_DISCARDED/CARD_MOVED reducer 直接操作 `GameState.zones` 中的 cards 数组，而 ZoneManager 也维护独立的 zones Map 并有 `moveCard`/`addCard`/`removeCard` 方法。**Game 类同时持有两者，但没有同步机制，极易产生不一致。**
+- **建议**: 确定单一数据源策略：
+  - 方案 A: StateManager 是唯一数据源，ZoneManager 变为纯查询层（读取 StateManager 的状态）
+  - 方案 B: ZoneManager 管理区域，StateManager reducer 不直接操作 zones，而是通过 ZoneManager
+  - 方案 C: Game 类在 emitAndApply 后同步两者
+  推荐方案 A，保持事件溯源的纯粹性。
+- **优先级**: 🟡 中（架构一致性）
+
+### REVIEW-030: 缺少 engine.test.ts
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-006
+- **文件**: `engine.test.ts`（不存在）
+- **日期**: 2026-05-18
+- **问题**: Game 类没有任何单元测试。作为核心整合层，它是所有子系统的入口，缺少测试意味着整合逻辑未经验证。TASKS.md 要求测试覆盖率 > 85%。
+- **建议**: 编写 engine.test.ts，至少覆盖：
+  1. 游戏创建 → 添加玩家 → 开始 → 结束的完整生命周期
+  2. 出牌流程（CARD_PLAYED 事件正确传播到 StateManager）
+  3. 响应流程（EventStack 机制）
+  4. 隐藏信息（getStateForPlayer 正确过滤）
+  5. 错误场景（人数不足、非法出牌等）
+  6. 集成测试：模拟 2 回合游戏
+- **优先级**: 🟡 中（TASK-006 验收标准）
+
+### REVIEW-031: emitAndApply 顺序问题 — 先 emit 后 apply
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-006
+- **文件**: `engine.ts:188-194`
+- **日期**: 2026-05-18
+- **问题**: `emitAndApply` 先调用 `eventBus.emit(event)` 再调用 `state.applyEvent(event)`。这意味着事件 handler 触发时，StateManager 还没有更新状态。如果 handler 需要读取最新状态（如判断玩家是否存活），会拿到旧数据。
+- **建议**: 考虑是否应该先 apply 再 emit，或者提供 `beforeEvent`/`afterEvent` 两个钩子。需要明确事件时序语义。
+- **优先级**: 🟢 低（设计决策，取决于事件语义）
+
+---
+
+*审查人: Hermes Agent | 日期: 2026-05-18*
     73|    73|
