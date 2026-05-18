@@ -71,6 +71,46 @@
     71|    71|
     72|    72|---
 
+## TASK-005 审查（资源系统）
+
+### REVIEW-032: getPlayerResourceCount/getPlayerResources 有前缀碰撞 bug
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-005
+- **文件**: `resources.ts:159-162`, `resources.ts:170-175`
+- **日期**: 2026-05-18
+- **问题**: 用 `key.startsWith(playerId + ":")` 遍历所有 key 来查找玩家资源。如果玩家 ID 是 `"p1"` 和 `"p10"`，`"p10:health".startsWith("p1:")` 返回 false（安全），但如果 ID 是 `"player1"` 和 `"player10"`，`"player10:health".startsWith("player1:")` 也返回 false。然而如果 ID 恰好是 `"player1"` 和 `"player1_suffix"`，则会碰撞。更根本的问题是：这种扫描方式是 O(n) 而非 O(1)，应使用嵌套 Map 结构。
+- **建议**: 将 `resources` 改为 `Map<PlayerId, Map<ResourceId, ResourceState>>`，消除前缀匹配，查询变为 O(1)。
+- **优先级**: 🟡 中（潜在 bug + 性能）
+
+### REVIEW-033: initResource 静默失败
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-005
+- **文件**: `resources.ts:33-35`
+- **日期**: 2026-05-18
+- **问题**: `initResource` 在 definition 不存在时直接 `return`，无任何日志或错误。调用者无法知道初始化失败。
+- **建议**: 添加 `console.warn` 或抛出错误。参考 ZoneManager 的风格（console.warn）。
+- **优先级**: 🟢 低
+
+### REVIEW-034: resetToDefault 不触发 RESOURCE_CHANGED 事件
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-005
+- **文件**: `resources.ts:145-152`
+- **日期**: 2026-05-18
+- **问题**: `resetToDefault` 直接修改 `resource.current` 而不 emit 事件。`modify` 和 `set` 都会触发 RESOURCE_CHANGED，但 resetToDefault 不会。这破坏了事件溯源——replay 时资源重置操作会丢失。
+- **建议**: 改用 `this.set(playerId, resourceId, def.defaultValue)` 或手动 emit 事件。
+- **优先级**: 🟡 中（事件溯源完整性）
+
+### REVIEW-035: modify 返回值歧义
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-005
+- **文件**: `resources.ts:70`
+- **日期**: 2026-05-18
+- **问题**: `modify` 在资源不存在时返回 `0`。但 `0` 可能是合法的资源值（如 mana 为 0）。调用者无法区分"资源不存在"和"资源值为 0"。
+- **建议**: 资源不存在时抛出错误或返回 `undefined`。
+- **优先级**: 🟢 低
+
+---
+
 ## TASK-006 预审查（Game 引擎整合）
 
 > 以下审查意见基于 TASK-006 开始前对 engine.ts 及相关模块的代码审查。
