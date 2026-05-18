@@ -1,0 +1,72 @@
+{
+  "game": {
+    "name": "三国杀标准规则",
+    "version": "1.0.0",
+    "description": "三国杀标准版游戏规则定义"
+  },
+  "zones": [
+    { "id": "deck", "name": "牌堆", "visibility": "none", "ordered": true, "faceDown": true, "owner": "global" },
+    { "id": "discard", "name": "弃牌堆", "visibility": "all", "ordered": false, "faceDown": false, "owner": "global" },
+    { "id": "hand", "name": "手牌", "visibility": "owner", "ordered": true, "faceDown": false, "owner": "player" },
+    { "id": "equipment", "name": "装备区", "visibility": "all", "ordered": false, "faceDown": false, "owner": "player" },
+    { "id": "judge", "name": "判定区", "visibility": "all", "ordered": true, "faceDown": false, "owner": "player" },
+    { "id": "skills", "name": "技能区", "visibility": "all", "ordered": false, "faceDown": false, "owner": "player" }
+  ],
+  "phases": [
+    { "id": "prepare", "name": "准备阶段", "auto": true },
+    { "id": "judge", "name": "判定阶段", "auto": true },
+    { "id": "draw", "name": "摸牌阶段", "auto": true, "drawCount": 2 },
+    { "id": "play", "name": "出牌阶段", "auto": false },
+    { "id": "discard", "name": "弃牌阶段", "auto": true },
+    { "id": "end", "name": "结束阶段", "auto": true }
+  ],
+  "resources": [
+    { "id": "health", "name": "体力", "defaultValue": 4, "min": 0, "max": 10 },
+    { "id": "maxHealth", "name": "体力上限", "defaultValue": 4, "min": 1, "max": 10 }
+  ],
+  "turnOrder": "counterclockwise",
+  "gameFlow": {
+    "setup": {
+      "shuffleDeck": true,
+      "initialHandSize": 4,
+      "firstPlayerDraw": true,
+      "identityDistribution": {
+        "lord": 1,
+        "loyalist": 1,
+        "rebel": 2,
+        "spy": 1
+      }
+    },
+    "turn": {
+      "maxShaPerTurn": 1,
+      "canEquipDuringPlay": true,
+      "canUseSkills": true
+    },
+    "death": {
+      "dropAllCards": true,
+      "drawReward": 3
+    },
+    "specialActions": {
+      "jueDouTargetCount": 1,
+      "nanmanTargetCount": "all_enemies",
+      "wanjianTargetCount": "all_others"
+    }
+  },
+  "cardLimits": {
+    "maxHandCards": "equalToHealth",
+    "maxEquipmentPerSlot": 1,
+    "maxMounts": 2
+  },
+  "winConditions": {
+    "lordVictory": "主公获胜：所有反贼和内奸阵亡",
+    "rebelVictory": "反贼获胜：主公阵亡",
+    "spyVictory": "内奸获胜：主公阵亡后，内奸为最后存活的角色",
+    "loyalistVictory": "忠臣获胜：与主公一同击败所有反贼和内奸"
+  },
+  "identities": [
+    { "id": "lord", "name": "主公", "hpBonus": 1, "visible": true },
+    { "id": "loyalist", "name": "忠臣", "goal": "保护主公，消灭反贼和内奸" },
+    { "id": "rebel", "name": "反贼", "goal": "消灭主公" },
+    { "id": "spy", "name": "内奸", "goal": "消灭所有其他角色，最后击杀主公" }
+  ]
+}

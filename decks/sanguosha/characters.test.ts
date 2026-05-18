@@ -6,10 +6,10 @@ import { sunQuanZhiheng } from "./effects/sunquan.js";
 import { guanYuWuSheng } from "./effects/guanyu.js";
 import { zhangFeiBaqi } from "./effects/zhangfei.js";
 import { zhaoYunLongDan } from "./effects/zhaoyun.js";
-import { zhugeKongmingEmpty, zhugeKongmingZhiyuan } from "./effects/zhugekongming.js";
-import { zhouYuYingzi, zhouYuTandu } from "./effects/zhouyu.js";
-import { zhugeJinBoshu, zhugeJinHeshi } from "./effects/zhugejin.js";
-import { huangZhongLiaoyuan, huangZhongBaibu } from "./effects/huangzhong.js";
+import { lvBuWuShuang } from "./effects/lvbu.js";
+import { diaoChanLiJian, diaoChanBiYue } from "./effects/diaochan.js";
+import { huaTuoQingNang, huaTuoJiJiu } from "./effects/huatuo.js";
+import { simaYiFanKui, simaYiGuiCai } from "./effects/simayi.js";
 
 describe("Sanguosha Characters — Wei Faction", () => {
   it("caocao jueji should have correct structure", () => {
@@ -19,6 +19,25 @@ describe("Sanguosha Characters — Wei Faction", () => {
     expect(typeof caoCaoJueji.script).toBe("string");
     expect(caoCaoJueji.trigger).toBe("onDamageReceived");
     expect(caoCaoJueji.validTargets).toBe("self");
+  });
+
+  it("simayi fankui should have correct structure", () => {
+    expect(simaYiFanKui.id).toBe("fankui");
+    expect(simaYiFanKui.name).toBe("反馈");
+    expect(simaYiFanKui.type).toBe("passive");
+    expect(typeof simaYiFanKui.script).toBe("string");
+    expect(simaYiFanKui.trigger).toBe("onDamageReceived");
+    expect(simaYiFanKui.validTargets).toBe("self");
+  });
+
+  it("simayi guicai should have correct structure", () => {
+    expect(simaYiGuiCai.id).toBe("guicai");
+    expect(simaYiGuiCai.name).toBe("鬼才");
+    expect(simaYiGuiCai.type).toBe("active");
+    expect(typeof simaYiGuiCai.script).toBe("string");
+    expect(simaYiGuiCai.script).toContain("replace_judge_card");
+    expect(simaYiGuiCai.trigger).toBe("beforeJudge");
+    expect(simaYiGuiCai.validTargets).toBe("self");
   });
 });
 
@@ -59,42 +78,6 @@ describe("Sanguosha Characters — Shu Faction", () => {
     expect(zhaoYunLongDan.trigger).toBe("playShaOrShan");
     expect(zhaoYunLongDan.validTargets).toBe("self");
   });
-
-  it("zhugekongming kongming should have correct structure", () => {
-    expect(zhugeKongmingEmpty.id).toBe("kongming");
-    expect(zhugeKongmingEmpty.name).toBe("空城");
-    expect(zhugeKongmingEmpty.type).toBe("passive");
-    expect(typeof zhugeKongmingEmpty.script).toBe("string");
-    expect(zhugeKongmingEmpty.trigger).toBe("becomeTarget");
-    expect(zhugeKongmingEmpty.validTargets).toBe("self");
-  });
-
-  it("zhugekongming zhiyuan should have correct structure", () => {
-    expect(zhugeKongmingZhiyuan.id).toBe("zhiyuan");
-    expect(zhugeKongmingZhiyuan.name).toBe("志远");
-    expect(zhugeKongmingZhiyuan.type).toBe("active");
-    expect(typeof zhugeKongmingZhiyuan.script).toBe("string");
-    expect(zhugeKongmingZhiyuan.trigger).toBe("drawPhase");
-    expect(zhugeKongmingZhiyuan.validTargets).toBe("self");
-  });
-
-  it("huangzhong liaoyuan should have correct structure", () => {
-    expect(huangZhongLiaoyuan.id).toBe("liaoyuan");
-    expect(huangZhongLiaoyuan.name).toBe("燎原");
-    expect(huangZhongLiaoyuan.type).toBe("passive");
-    expect(typeof huangZhongLiaoyuan.script).toBe("string");
-    expect(huangZhongLiaoyuan.trigger).toBe("playSha");
-    expect(huangZhongLiaoyuan.validTargets).toBe("self");
-  });
-
-  it("huangzhong baibu should have correct structure", () => {
-    expect(huangZhongBaibu.id).toBe("baibu");
-    expect(huangZhongBaibu.name).toBe("百步");
-    expect(huangZhongBaibu.type).toBe("active");
-    expect(typeof huangZhongBaibu.script).toBe("string");
-    expect(huangZhongBaibu.trigger).toBe("playSha");
-    expect(huangZhongBaibu.validTargets).toBe("enemy");
-  });
 });
 
 describe("Sanguosha Characters — Wu Faction", () => {
@@ -106,41 +89,57 @@ describe("Sanguosha Characters — Wu Faction", () => {
     expect(sunQuanZhiheng.trigger).toBe("playPhase");
     expect(sunQuanZhiheng.validTargets).toBe("self");
   });
+});
 
-  it("zhouyu fengshen should have correct structure", () => {
-    expect(zhouYuYingzi.id).toBe("fengshen");
-    expect(zhouYuYingzi.name).toBe("英姿");
-    expect(zhouYuYingzi.type).toBe("passive");
-    expect(typeof zhouYuYingzi.script).toBe("string");
-    expect(zhouYuYingzi.trigger).toBe("drawPhase");
-    expect(zhouYuYingzi.validTargets).toBe("self");
+describe("Sanguosha Characters — Qun Faction", () => {
+  it("lvbu wushuang should have correct structure", () => {
+    expect(lvBuWuShuang.id).toBe("wushuang");
+    expect(lvBuWuShuang.name).toBe("无双");
+    expect(lvBuWuShuang.type).toBe("passive");
+    expect(typeof lvBuWuShuang.script).toBe("string");
+    expect(lvBuWuShuang.script).toContain("double_shan_required");
+    expect(lvBuWuShuang.trigger).toBe("playSha");
+    expect(lvBuWuShuang.validTargets).toBe("enemy");
   });
 
-  it("zhouyu tandu should have correct structure", () => {
-    expect(zhouYuTandu.id).toBe("tandu");
-    expect(zhouYuTandu.name).toBe("反间");
-    expect(zhouYuTandu.type).toBe("active");
-    expect(typeof zhouYuTandu.script).toBe("string");
-    expect(zhouYuTandu.trigger).toBe("playPhase");
-    expect(zhouYuTandu.validTargets).toBe("other");
+  it("diaochan lijian should have correct structure", () => {
+    expect(diaoChanLiJian.id).toBe("lijian");
+    expect(diaoChanLiJian.name).toBe("离间");
+    expect(diaoChanLiJian.type).toBe("active");
+    expect(typeof diaoChanLiJian.script).toBe("string");
+    expect(diaoChanLiJian.script).toContain("context.requestResponse");
+    expect(diaoChanLiJian.trigger).toBe("playPhase");
+    expect(diaoChanLiJian.validTargets).toBe("twoOthers");
   });
 
-  it("zhugejin boshu should have correct structure", () => {
-    expect(zhugeJinBoshu.id).toBe("boshu");
-    expect(zhugeJinBoshu.name).toBe("博术");
-    expect(zhugeJinBoshu.type).toBe("active");
-    expect(typeof zhugeJinBoshu.script).toBe("string");
-    expect(zhugeJinBoshu.trigger).toBe("drawPhase");
-    expect(zhugeJinBoshu.validTargets).toBe("self");
+  it("diaochan biyue should have correct structure", () => {
+    expect(diaoChanBiYue.id).toBe("biyue");
+    expect(diaoChanBiYue.name).toBe("闭月");
+    expect(diaoChanBiYue.type).toBe("passive");
+    expect(typeof diaoChanBiYue.script).toBe("string");
+    expect(diaoChanBiYue.script).toContain("context.log");
+    expect(diaoChanBiYue.trigger).toBe("endPhase");
+    expect(diaoChanBiYue.validTargets).toBe("self");
   });
 
-  it("zhugejin heshi should have correct structure", () => {
-    expect(zhugeJinHeshi.id).toBe("heshi");
-    expect(zhugeJinHeshi.name).toBe("和事");
-    expect(zhugeJinHeshi.type).toBe("active");
-    expect(typeof zhugeJinHeshi.script).toBe("string");
-    expect(zhugeJinHeshi.trigger).toBe("playPhase");
-    expect(zhugeJinHeshi.validTargets).toBe("other");
+  it("huatuo qingnang should have correct structure", () => {
+    expect(huaTuoQingNang.id).toBe("qingnang");
+    expect(huaTuoQingNang.name).toBe("青囊");
+    expect(huaTuoQingNang.type).toBe("active");
+    expect(typeof huaTuoQingNang.script).toBe("string");
+    expect(huaTuoQingNang.script).toContain("context.setResource");
+    expect(huaTuoQingNang.trigger).toBe("playPhase");
+    expect(huaTuoQingNang.validTargets).toBe("other");
+  });
+
+  it("huatuo jijiu should have correct structure", () => {
+    expect(huaTuoJiJiu.id).toBe("jijiu");
+    expect(huaTuoJiJiu.name).toBe("急救");
+    expect(huaTuoJiJiu.type).toBe("passive");
+    expect(typeof huaTuoJiJiu.script).toBe("string");
+    expect(huaTuoJiJiu.script).toContain("convert_peach_to_shan");
+    expect(huaTuoJiJiu.trigger).toBe("playShan");
+    expect(huaTuoJiJiu.validTargets).toBe("self");
   });
 });
 
@@ -153,36 +152,47 @@ describe("Character skill IDs uniqueness", () => {
       guanYuWuSheng.id,
       zhangFeiBaqi.id,
       zhaoYunLongDan.id,
-      zhugeKongmingEmpty.id,
-      zhugeKongmingZhiyuan.id,
-      zhouYuYingzi.id,
-      zhouYuTandu.id,
-      zhugeJinBoshu.id,
-      zhugeJinHeshi.id,
-      huangZhongLiaoyuan.id,
-      huangZhongBaibu.id,
+      lvBuWuShuang.id,
+      diaoChanLiJian.id,
+      diaoChanBiYue.id,
+      huaTuoQingNang.id,
+      huaTuoJiJiu.id,
+      simaYiFanKui.id,
+      simaYiGuiCai.id,
     ];
     const uniqueIds = new Set(allSkillIds);
-    expect(uniqueIds.size).toBe(14);
+    expect(uniqueIds.size).toBe(13);
   });
 });
 
 describe("Character skills count by faction", () => {
-  it("wei should have 1 character with 1 skill", () => {
-    const weiSkills = [caoCaoJueji];
-    expect(weiSkills.length).toBe(1);
+  it("wei should have 2 characters with 3 skills", () => {
+    const weiSkills = [caoCaoJueji, simaYiFanKui, simaYiGuiCai];
+    expect(weiSkills.length).toBe(3);
   });
 
-  it("shu should have 5 characters with 7 skills", () => {
-    const shuSkills = [liuBeiRende, guanYuWuSheng, zhangFeiBaqi, zhaoYunLongDan, 
-                       zhugeKongmingEmpty, zhugeKongmingZhiyuan, 
-                       huangZhongLiaoyuan, huangZhongBaibu];
-    expect(shuSkills.length).toBe(8);
+  it("shu should have 4 characters with 4 skills", () => {
+    const shuSkills = [liuBeiRende, guanYuWuSheng, zhangFeiBaqi, zhaoYunLongDan];
+    expect(shuSkills.length).toBe(4);
   });
 
-  it("wu should have 4 characters with 5 skills", () => {
-    const wuSkills = [sunQuanZhiheng, zhouYuYingzi, zhouYuTandu, 
-                      zhugeJinBoshu, zhugeJinHeshi];
-    expect(wuSkills.length).toBe(5);
+  it("wu should have 1 character with 1 skill", () => {
+    const wuSkills = [sunQuanZhiheng];
+    expect(wuSkills.length).toBe(1);
+  });
+
+  it("qun should have 3 characters with 5 skills", () => {
+    const qunSkills = [lvBuWuShuang, diaoChanLiJian, diaoChanBiYue, huaTuoQingNang, huaTuoJiJiu];
+    expect(qunSkills.length).toBe(5);
+  });
+
+  it("total skills should be 13 across 10 characters", () => {
+    const allSkills = [
+      caoCaoJueji, simaYiFanKui, simaYiGuiCai,
+      liuBeiRende, guanYuWuSheng, zhangFeiBaqi, zhaoYunLongDan,
+      sunQuanZhiheng,
+      lvBuWuShuang, diaoChanLiJian, diaoChanBiYue, huaTuoQingNang, huaTuoJiJiu,
+    ];
+    expect(allSkills.length).toBe(13);
   });
 });
