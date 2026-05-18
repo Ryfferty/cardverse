@@ -1,0 +1,187 @@
+{
+  "manifest": {
+    "id": "sanguosha-tricks",
+    "name": "三国杀 — 锦囊牌",
+    "version": "1.0.0",
+    "author": "CardVerse",
+    "description": "三国杀标准版锦囊牌定义（过河拆桥、顺手牵羊、无中生有、无懈可击、决斗、南蛮入侵、万箭齐发、桃园结义）",
+    "minPlayers": 2,
+    "maxPlayers": 8,
+    "frameworkVersion": "1.0.0",
+    "tags": ["sanguosha", "trick", "standard"]
+  },
+  "rules": {
+    "zones": [
+      { "id": "deck", "name": "牌堆", "visibility": "none", "ordered": true, "faceDown": true, "owner": "global" },
+      { "id": "discard", "name": "弃牌堆", "visibility": "all", "ordered": false, "faceDown": false, "owner": "global" },
+      { "id": "hand", "name": "手牌", "visibility": "owner", "ordered": true, "faceDown": false, "owner": "player" },
+      { "id": "equipment", "name": "装备区", "visibility": "all", "ordered": false, "faceDown": false, "owner": "player" },
+      { "id": "judge", "name": "判定区", "visibility": "all", "ordered": true, "faceDown": false, "owner": "player" }
+    ],
+    "phases": [
+      { "id": "prepare", "name": "准备阶段", "auto": true },
+      { "id": "judge", "name": "判定阶段", "auto": true },
+      { "id": "draw", "name": "摸牌阶段", "auto": true },
+      { "id": "play", "name": "出牌阶段", "auto": false },
+      { "id": "discard", "name": "弃牌阶段", "auto": true },
+      { "id": "end", "name": "结束阶段", "auto": true }
+    ],
+    "resources": [
+      { "id": "health", "name": "体力", "defaultValue": 3, "min": 0, "max": 5 },
+      { "id": "maxHealth", "name": "体力上限", "defaultValue": 3, "min": 1, "max": 8 }
+    ],
+    "turnOrder": "counterclockwise"
+  },
+  "cards": [
+    {
+      "id": "guohe",
+      "name": "过河拆桥",
+      "category": "trick",
+      "description": "弃置目标角色区域内的一张牌",
+      "count": 6,
+      "tags": ["single-target", "disrupt"],
+      "effects": [
+        {
+          "id": "guohe_discard",
+          "name": "弃置目标牌",
+          "type": "dismantle",
+          "params": { "count": 1 },
+          "validTargets": "enemyWithCards",
+          "script": "effects/guohe.js"
+        }
+      ]
+    },
+    {
+      "id": "shunshou",
+      "name": "顺手牵羊",
+      "category": "trick",
+      "description": "获得目标角色区域内的一张牌",
+      "count": 5,
+      "tags": ["single-target", "steal", "disrupt"],
+      "effects": [
+        {
+          "id": "shunshou_steal",
+          "name": "获得目标牌",
+          "type": "steal",
+          "params": { "count": 1 },
+          "validTargets": "enemyWithCards",
+          "script": "effects/shunshou.js"
+        }
+      ]
+    },
+    {
+      "id": "wuzhong",
+      "name": "无中生有",
+      "category": "trick",
+      "description": "摸两张牌",
+      "count": 4,
+      "tags": ["self-benefit", "draw"],
+      "effects": [
+        {
+          "id": "wuzhong_draw",
+          "name": "摸两张牌",
+          "type": "draw",
+          "params": { "count": 2 },
+          "validTargets": "self",
+          "script": "effects/wuzhong.js"
+        }
+      ]
+    },
+    {
+      "id": "wuxie",
+      "name": "无懈可击",
+      "category": "trick",
+      "description": "抵消一张锦囊牌的效果",
+      "count": 7,
+      "tags": ["response", "counter"],
+      "effects": [
+        {
+          "id": "wuxie_nullify",
+          "name": "抵消锦囊效果",
+          "type": "counter",
+          "params": { "cardCategory": "trick" },
+          "validTargets": "indirect",
+          "script": "effects/wuxie.js"
+        }
+      ]
+    },
+    {
+      "id": "juedou",
+      "name": "决斗",
+      "category": "trick",
+      "description": "与目标角色轮流使用杀，先无法使用者受1点伤害",
+      "count": 3,
+      "tags": ["single-target", "duel"],
+      "effects": [
+        {
+          "id": "juedou_duel",
+          "name": "决斗伤害",
+          "type": "duel",
+          "params": { "cardId": "sha" },
+          "validTargets": "enemy",
+          "script": "effects/juedou.js"
+        }
+      ]
+    },
+    {
+      "id": "nanman",
+      "name": "南蛮入侵",
+      "category": "trick",
+      "description": "所有其他角色需使用一张杀，否则受1点伤害",
+      "count": 3,
+      "tags": ["aoe", "group"],
+      "effects": [
+        {
+          "id": "nanman_aoe",
+          "name": "南蛮入侵效果",
+          "type": "aoe",
+          "params": { "requiredCard": "sha", "damage": 1 },
+          "validTargets": "allOther",
+          "script": "effects/nanman.js"
+        }
+      ]
+    },
+    {
+      "id": "wanjian",
+      "name": "万箭齐发",
+      "category": "trick",
+      "description": "所有其他角色需使用一张闪，否则受1点伤害",
+      "count": 1,
+      "tags": ["aoe", "group"],
+      "effects": [
+        {
+          "id": "wanjian_aoe",
+          "name": "万箭齐发效果",
+          "type": "aoe",
+          "params": { "requiredCard": "shan", "damage": 1 },
+          "validTargets": "allOther",
+          "script": "effects/wanjian.js"
+        }
+      ]
+    },
+    {
+      "id": "taoyuan",
+      "name": "桃园结义",
+      "category": "trick",
+      "description": "所有角色恢复1点体力",
+      "count": 1,
+      "tags": ["aoe", "heal", "group"],
+      "effects": [
+        {
+          "id": "taoyuan_heal",
+          "name": "桃园恢复",
+          "type": "aoeHeal",
+          "params": { "amount": 1 },
+          "validTargets": "all",
+          "script": "effects/taoyuan.js"
+        }
+      ]
+    }
+  ],
+  "winConditions": [
+    { "type": "last-standing" }
+  ],
+  "drawConditions": [
+    { "type": "all-dead" }
+  ]
+}
