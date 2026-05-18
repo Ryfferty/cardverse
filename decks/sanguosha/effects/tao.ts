@@ -1,4 +1,4 @@
-import type { EffectDefinition } from "@cardverse/shared";
+import type { EffectDefinition } from "@cardverse/deck";
 
 export const taoHeal: EffectDefinition = {
   id: "tao_heal",

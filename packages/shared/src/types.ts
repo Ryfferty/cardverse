@@ -217,3 +217,26 @@ export interface GameConfig {
   /** AI reconnect timeout in seconds */
   reconnectTimeout?: number;
 }
+
+// ---------- Effect Context ----------
+
+export interface ModifierTarget {
+  type: string;
+  value: number;
+  source: string;
+  cardType?: string;
+  expires: string;
+}
+
+export interface EffectContext {
+  target: PlayerId | string;
+  params: Record<string, unknown>;
+  player: { id: PlayerId; name: string };
+  event: GameEvent;
+  requestResponse(target: PlayerId | string, data: Record<string, unknown>): Promise<boolean | null>;
+  damage(target: PlayerId | string, amount: number): Promise<void>;
+  getResource(playerId: PlayerId | string, resourceId: string): Promise<number>;
+  setResource(playerId: PlayerId | string, resourceId: string, value: number): Promise<void>;
+  addModifier(playerId: PlayerId | string, modifier: ModifierTarget): Promise<void>;
+  log(message: string): void;
+}

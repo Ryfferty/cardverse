@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { DeckLoader, DeckError } from "@cardverse/deck";
+import type { EffectDefinition } from "@cardverse/deck";
+import { shaDamage } from "./effects/sha.js";
+import { shanDodge } from "./effects/shan.js";
+import { taoHeal } from "./effects/tao.js";
+import { jiuEffects } from "./effects/jiu.js";
 
 describe("Sanguosha Basic Deck", () => {
   const basicJson = {
@@ -168,5 +173,79 @@ describe("Sanguosha Basic Deck", () => {
     expect(deck.effects.has("jiu_buff")).toBe(true);
     expect(deck.effects.get("jiu_rescue")?.type).toBe("heal");
     expect(deck.effects.get("jiu_buff")?.type).toBe("buff");
+  });
+});
+
+describe("Effect scripts", () => {
+  it("sha should have correct structure", () => {
+    expect(shaDamage.id).toBe("sha_damage");
+    expect(shaDamage.name).toBe("造成伤害");
+    expect(shaDamage.type).toBe("damage");
+    expect(typeof shaDamage.script).toBe("string");
+    expect(shaDamage.script).toContain("context.damage");
+    expect(shaDamage.script).toContain("context.requestResponse");
+    expect(shaDamage.validTargets).toBe("inRange");
+    expect(shaDamage.params).toEqual({ amount: 1 });
+  });
+
+  it("shan should have correct structure", () => {
+    expect(shanDodge.id).toBe("shan_dodge");
+    expect(shanDodge.name).toBe("闪避");
+    expect(shanDodge.type).toBe("counter");
+    expect(typeof shanDodge.script).toBe("string");
+    expect(shanDodge.script).toContain("context.log");
+    expect(shanDodge.validTargets).toBe("self");
+    expect(shanDodge.params).toEqual({ sourceType: "damage" });
+  });
+
+  it("tao should have correct structure", () => {
+    expect(taoHeal.id).toBe("tao_heal");
+    expect(taoHeal.name).toBe("回复体力");
+    expect(taoHeal.type).toBe("heal");
+    expect(typeof taoHeal.script).toBe("string");
+    expect(taoHeal.script).toContain("context.getResource");
+    expect(taoHeal.script).toContain("context.setResource");
+    expect(taoHeal.validTargets).toBe("wounded");
+    expect(taoHeal.params).toEqual({ amount: 1 });
+  });
+
+  it("jiu should export array of two effects", () => {
+    expect(Array.isArray(jiuEffects)).toBe(true);
+    expect(jiuEffects).toHaveLength(2);
+  });
+
+  it("jiu_rescue should have correct structure", () => {
+    const rescue = jiuEffects.find((e) => e.id === "jiu_rescue")!;
+    expect(rescue).toBeDefined();
+    expect(rescue.name).toBe("濒死回复");
+    expect(rescue.type).toBe("heal");
+    expect(typeof rescue.script).toBe("string");
+    expect(rescue.script).toContain("context.setResource");
+    expect(rescue.script).toContain("context.getResource");
+    expect(rescue.validTargets).toBe("self");
+    expect(rescue.params).toEqual({ amount: 1, condition: "dying" });
+  });
+
+  it("jiu_buff should have correct structure", () => {
+    const buff = jiuEffects.find((e) => e.id === "jiu_buff")!;
+    expect(buff).toBeDefined();
+    expect(buff.name).toBe("酒劲");
+    expect(buff.type).toBe("buff");
+    expect(typeof buff.script).toBe("string");
+    expect(buff.script).toContain("context.addModifier");
+    expect(buff.script).toContain("context.log");
+    expect(buff.validTargets).toBe("self");
+    expect(buff.params).toEqual({ damageBonus: 1, duration: "turn" });
+  });
+
+  it("all effect scripts should be strings with context API calls", () => {
+    const allEffectIds = [
+      shaDamage.id,
+      shanDodge.id,
+      ...jiuEffects.map((e) => e.id),
+      taoHeal.id,
+    ];
+    const uniqueIds = new Set(allEffectIds);
+    expect(uniqueIds.size).toBe(5);
   });
 });
