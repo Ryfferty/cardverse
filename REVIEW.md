@@ -154,5 +154,33 @@
 - **日期**: 2026-05-18
 - **修复**: emitAndApply 顺序为 push → apply → emit，确保 handler 触发时 StateManager 已更新到最新状态。
 
+---
+
+## TASK-005 & TASK-006 修复验证
+
+> Hermes Agent 对 Trae SOLO 的修复提交 `f096e65` 进行逐项验证。
+
+**构建**: ✅ pnpm build 通过（shared + core + deck + web）
+**测试**: ✅ 253/253 通过（6 个测试文件，含新增 engine.test.ts 26 个测试）
+**类型检查**: ✅ tsc --noEmit 零错误
+
+| 审查 | 问题 | 验证结果 | 说明 |
+|------|------|----------|------|
+| 025 | playCard 字段名不匹配 | ✅ 正确修复 | `data: { cardId, playerId, targets }` 与 reducer 一致 |
+| 026 | addPlayer `as any` | ✅ 正确修复 | StateManager 新增 `addPlayer()`/`setPlayerZone()`/`setGlobalZone()` |
+| 027 | respondToEvent 绕过状态 | ✅ 正确修复 | 改为 async，走 `emitAndApply()` 完整 pipeline |
+| 028 | 缺少回合流程方法 | ✅ 正确修复 | 新增 `startTurn()`/`nextPhase()`/`endTurn()`，含资源再生+淘汰判定 |
+| 029 | 区域操作双轨制 | ✅ 合理处理 | StateManager 为主数据源，ZoneManager 用于初始化/查询 |
+| 030 | 缺少 engine.test.ts | ✅ 正确修复 | 534 行、26 测试，覆盖完整生命周期+集成测试 |
+| 031 | emitAndApply 顺序 | ✅ 正确修复 | 改为 push → apply → emit，handler 能读到最新状态 |
+| 032 | 前缀碰撞 bug | ✅ 正确修复 | 改为 `Map<PlayerId, Map<ResourceId, ResourceState>>` 嵌套结构 |
+| 033 | initResource 静默失败 | ✅ 正确修复 | 添加 `console.warn` 日志 |
+| 034 | resetToDefault 无事件 | ✅ 正确修复 | 改为 async，内部调用 `this.set()` 触发事件 |
+| 035 | modify 返回值歧义 | ✅ 正确修复 | 资源不存在时抛出 Error |
+
+**结论**: 11 项审查意见全部正确修复，无新问题引入。TASK-006 可标记完成。
+
+---
+
 *审查人: Hermes Agent | 日期: 2026-05-18*
     73|    73|
