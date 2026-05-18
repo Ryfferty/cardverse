@@ -192,12 +192,11 @@ describe("DeckLoader", () => {
       expect(deck.instances).toEqual([]);
     });
 
-    it("should handle cards as non-array gracefully", () => {
+    it("should reject cards as non-array", () => {
       const json = makeMinimalDeck();
       json.cards = "not-an-array" as unknown as Record<string, unknown>[];
 
-      const deck = loader.loadFromJson(json);
-      expect(deck.cards.size).toBe(0);
+      expect(() => loader.loadFromJson(json)).toThrow(DeckError);
     });
 
     it("should skip cards with empty id", () => {
@@ -479,12 +478,11 @@ describe("DeckLoader", () => {
       expect(() => loader.loadFromJson(json)).toThrow(DeckError);
     });
 
-    it("should return empty cards for non-array cards field", () => {
+    it("should reject cards as non-array object", () => {
       const json = makeMinimalDeck();
       json.cards = { not: "an array" } as unknown as Record<string, unknown>[];
 
-      const deck = loader.loadFromJson(json);
-      expect(deck.cards.size).toBe(0);
+      expect(() => loader.loadFromJson(json)).toThrow(DeckError);
     });
 
     it("should return empty effects for cards without effects", () => {
