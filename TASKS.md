@@ -254,7 +254,7 @@
   - 测试通过
 
 ### TASK-014: 集成测试 — 完整三国杀对局
-- **状态**: ⬜ 待开始
+- **状态**: ✅ 完成
 - **依赖**: TASK-013
 - **包**: `packages/core`, `packages/deck`, `packages/ai`
 - **文件**: `packages/core/src/integration.test.ts`
