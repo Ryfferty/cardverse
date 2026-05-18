@@ -6,6 +6,8 @@
   },
   "include": ["src"],
   "references": [
-    { "path": "../shared" }
+    { "path": "../shared" },
+    { "path": "../deck" },
+    { "path": "../ai" }
   ]
 }

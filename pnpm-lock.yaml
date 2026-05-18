@@ -72,6 +72,12 @@ importers:
         specifier: workspace:*
         version: link:../shared
     devDependencies:
+      '@cardverse/ai':
+        specifier: workspace:*
+        version: link:../ai
+      '@cardverse/deck':
+        specifier: workspace:*
+        version: link:../deck
       '@vitest/coverage-v8':
         specifier: ^3.2.4
         version: 3.2.4(vitest@3.2.4(@types/node@25.8.0))
