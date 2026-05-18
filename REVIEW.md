@@ -260,40 +260,32 @@
 > 验收标准全部满足：合法卡组通过 ✅ / 非法卡组给具体位置 ✅ / 警告不影响结果 ✅
 
 ### REVIEW-042: 缺少 effects 验证逻辑
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-008
-- **文件**: `validator.ts`
+- **提交**: 3bf70b8
 - **日期**: 2026-05-18
-- **问题**: 没有 `validateEffects()` 方法。卡牌内嵌的 effects（`card.effects[]`）的 id/type 等字段完全未校验。
-- **建议**: 在 `validateCards()` 中验证 `card.effects` 数组每个 effect 的 id/type 必填性。
-- **优先级**: 🟡 中
+- **修复**: 添加 `validateEffects()` 方法，验证 effect id/name/type/params 及跨卡重复。
 
 ### REVIEW-043: 缺少 cross-reference 验证
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-008
-- **文件**: `validator.ts`
+- **提交**: 3bf70b8
 - **日期**: 2026-05-18
-- **问题**: 卡牌 effect 引用的 effect ID 是否存在、卡牌引用的 resource ID 是否存在于 rules.resources 中，均未验证。
-- **建议**: 至少在 validateCards 中检查 effect ID 引用的有效性。
-- **优先级**: 🟡 中
+- **修复**: 添加 `validateCrossReferences()`，检查 `e.ref` 引用有效性。
 
 ### REVIEW-044: 缺少 cards 时静默通过
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-008
-- **文件**: `validator.ts:291`
+- **提交**: 3bf70b8
 - **日期**: 2026-05-18
-- **问题**: `validateCards()` 在 `json.cards` 不存在时直接 return，无 error/warning。没有卡牌的"卡组"能通过验证。
-- **建议**: 缺少 cards 时至少产生一个 warning。
-- **优先级**: 🟡 中
+- **修复**: `json.cards` 缺失时添加 `CARDS_MISSING` warning。
 
 ### REVIEW-045: winConditions/drawConditions 非数组仅报 warning
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-008
-- **文件**: `validator.ts`
+- **提交**: 3bf70b8
 - **日期**: 2026-05-18
-- **问题**: `winConditions`/`drawConditions` 非数组报 warning，但 `cards`/`characters` 非数组报 error。语义不一致——非数组类型应视为数据结构错误。
-- **建议**: `WIN_NOT_ARRAY` 和 `DRAW_NOT_ARRAY` 从 warning 升级为 error。
-- **优先级**: 🟡 中
+- **修复**: `WIN_NOT_ARRAY`/`DRAW_NOT_ARRAY` 从 warning 升级为 error。
 
 ---
 
