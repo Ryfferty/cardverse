@@ -1,5 +1,6 @@
 import {
   type CardDefinition,
+  type CardInstance,
   type ZoneDefinition,
   type PhaseDefinition,
   type ResourceDefinition,
@@ -131,6 +132,7 @@ export interface Deck {
   drawConditions: DrawCondition[];
   ui: UITemplate;
   characters?: CharacterDefinition[];
+  instances?: CardInstance[];
 }
 
 /** Rules configuration for a deck */

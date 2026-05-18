@@ -42,8 +42,12 @@ export class DeckValidator {
     if (json.cards && Array.isArray(json.cards)) {
       for (let i = 0; i < (json.cards as any[]).length; i++) {
         const card = (json.cards as any[])[i];
-        if (!card.id) errors.push({ code: "CARD_MISSING_ID", message: `Card at index ${i} has no id` });
-        if (!card.name) errors.push({ code: "CARD_MISSING_NAME", message: `Card "${card.id}" has no name` });
+        if (!card.id) {
+          warnings.push({ code: "CARD_MISSING_ID", message: `Card at index ${i} has no id, skipping` });
+        }
+        if (!card.name) {
+          warnings.push({ code: "CARD_MISSING_NAME", message: `Card "${card.id ?? `at index ${i}`}" has no name` });
+        }
         if (!card.category) warnings.push({ code: "CARD_MISSING_CATEGORY", message: `Card "${card.id}" has no category` });
       }
     }
