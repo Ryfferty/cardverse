@@ -235,7 +235,7 @@
 ## 阶段 4：AI 系统
 
 ### TASK-013: AI 接口与规则型 AI
-- **状态**: ⏳ 进行中
+- **状态**: ✅ 完成
 - **依赖**: TASK-012
 - **包**: `packages/ai`（新建）
 - **文件**: `src/types.ts`, `src/heuristic.ts`, `src/heuristic.test.ts`
