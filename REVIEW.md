@@ -545,5 +545,41 @@
 
 ---
 
+---
+
+## TASK-015 审查（基础 UI 搭建）
+
+**构建**: ✅ Vite 构建成功（~274KB gzip 86KB）
+**验收**: PixiJS 牌桌 ✅ / 手牌显示 ✅ / 基本交互 ✅ / 与 core/ai 集成 ⚠️ / 测试 ❌
+
+### REVIEW-060: 未集成 core/ai 包，仅为静态演示
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-015
+- **文件**: `apps/web/src/`
+- **日期**: 2026-05-18
+- **问题**: 无 `@cardverse/core`/`@cardverse/ai` import。fetch 直接读 JSON 绕过 DeckLoader/DeckValidator，按钮操作仅清除选中状态，阶段切换用 setInterval 模拟。
+- **建议**: 后续集成 Game 引擎，让出牌执行 `game.playCard()`。
+- **优先级**: 🟡 中（当前是"基础 UI"，集成可后续迭代）
+
+### REVIEW-061: 无测试文件
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-015
+- **文件**: `apps/web/`
+- **日期**: 2026-05-18
+- **问题**: 零测试文件，违反编码规范。
+- **建议**: 至少为 CardView/GameUI/TableRenderer 添加单元测试。
+- **优先级**: 🟡 中
+
+### REVIEW-062: 无 tsconfig.json
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-015
+- **文件**: `apps/web/`
+- **日期**: 2026-05-18
+- **问题**: 无 tsconfig.json，Vite 用 esbuild 转译不做类型检查，无法 tsc --noEmit。
+- **建议**: 添加 tsconfig.json 继承项目根配置。
+- **优先级**: 🟡 中
+
+---
+
 *审查人: Hermes Agent | 日期: 2026-05-18*
     73|    73|
