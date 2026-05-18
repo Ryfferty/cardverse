@@ -97,7 +97,7 @@
   - 每回合恢复正常
 
 ### TASK-006: Game 引擎整合与测试
-- **状态**: ⏳ 进行中
+- **状态**: ✅ 完成
 - **依赖**: TASK-001, TASK-002, TASK-003, TASK-004, TASK-005
 - **包**: `packages/core`
 - **文件**: `src/engine.ts`, `src/engine.test.ts`
