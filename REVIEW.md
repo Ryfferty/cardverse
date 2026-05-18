@@ -390,5 +390,68 @@
 
 ---
 
+---
+
+## TASK-012 审查（三国杀游戏规则与武将定义）
+
+**测试**: ✅ 440 全通过（core 253 + deck 109 + sanguosha 78）
+**构建**: ✅ pnpm build 通过
+
+### REVIEW-049: 武将名单与 TASKS.md 严重不符
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-012
+- **文件**: `characters/characters.json`
+- **日期**: 2026-05-18
+- **问题**: TASKS.md 要求曹操、刘备、孙权、关羽、张飞、赵云、**吕布、貂蝉、华佗、司马懿**。实际定义了曹操、刘备、孙权、关羽、张飞、赵云、**诸葛亮、周瑜、诸葛瑾、黄忠**。4 个武将完全缺失，4 个是计划外的。
+- **建议**: 替换诸葛亮/周瑜/诸葛瑾/黄忠为吕布/貂蝉/华佗/司马懿，或在 TASKS.md 中说明变更理由。
+- **优先级**: 🔴 高（验收标准不符）
+
+### REVIEW-050: 胜负条件不完整
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-012
+- **文件**: `manifest.json`
+- **日期**: 2026-05-18
+- **问题**: TASKS.md 要求三种身份局胜利：主公阵营胜利、反贼胜利、内奸单挑胜利。实际只有 `last-standing` 和 `no-enemies` 两个通用条件，缺少内奸单挑胜利。
+- **建议**: 添加内奸单挑胜利条件（`{ type: "last-standing-with-loyalist" }` 或类似）。
+- **优先级**: 🔴 高（核心游戏规则）
+
+### REVIEW-051: 武将数据用 `health` 而非 `hp`/`maxHp`
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-012
+- **文件**: `characters/characters.json`
+- **日期**: 2026-05-18
+- **问题**: 武将使用 `health` 字段，但验证器和引擎检查 `hp`/`maxHp`。验证器会跳过体力值校验，运行时引擎无法正确初始化武将体力。
+- **建议**: 统一为 `hp` 和 `maxHp` 字段，或在验证器中兼容 `health`。
+- **优先级**: 🔴 高（运行时 bug）
+
+### REVIEW-052: 黄忠技能 ID 不一致
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-012
+- **文件**: `characters.json` vs `effects/huangzhong.ts`
+- **日期**: 2026-05-18
+- **问题**: characters.json 中黄忠技能 id 为 `"louyuan"`，但效果脚本导出 id 为 `"liaoyuan"`。运行时按 id 查找会找不到。
+- **建议**: 统一为 `"liaoyuan"`（燎原）。
+- **优先级**: 🟡 中
+
+### REVIEW-053: 效果脚本引用与实际文件名不匹配
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-012
+- **文件**: `manifest.json`
+- **日期**: 2026-05-18
+- **问题**: manifest 引用 `effects/dismantle.ts`/`effects/steal.ts`/`effects/draw.ts`/`effects/counter.ts`/`effects/duel.ts`，实际文件名为 `guohe.ts`/`shunshou.ts`/`wuzhong.ts`/`wuxie.ts`/`juedou.ts`。当前无运行时影响，但动态加载会找不到文件。
+- **建议**: 统一命名（用卡牌 id 或用通用名）。
+- **优先级**: 🟡 中
+
+### REVIEW-054: 无独立 rules.json 文件
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-012
+- **文件**: `decks/sanguosha/`
+- **日期**: 2026-05-18
+- **问题**: TASKS.md 要求 `manifest.json` + `rules.json` + `characters/characters.json` 三个文件。实际 rules 嵌入在 manifest.json 中。
+- **建议**: 拆分为独立文件，或在 TASKS.md 中说明合并理由。
+- **优先级**: 🟢 低
+
+---
+
 *审查人: Hermes Agent | 日期: 2026-05-18*
     73|    73|
