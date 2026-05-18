@@ -289,5 +289,58 @@
 
 ---
 
+---
+
+## TASK-008 修复验证
+
+**测试**: ✅ 370/370 通过（core: 253 + deck: 109 + sanguosha: 8）
+**构建**: ✅ pnpm build 通过
+
+| 审查 | 问题 | 验证 | 说明 |
+|------|------|------|------|
+| 042 | 缺少 effects 验证 | ✅ 正确修复 | 新增 `validateEffects()`，验证 id/name/type/params |
+| 043 | 缺少 cross-reference | ✅ 正确修复 | 新增 `validateCrossReferences()`，检查 e.ref 引用 |
+| 044 | 缺少 cards 静默通过 | ✅ 正确修复 | 添加 `CARDS_MISSING` warning |
+| 045 | win/draw 非数组仅 warning | ✅ 正确修复 | 升级为 error |
+
+**结论**: 4 项全部正确修复。
+
+---
+
+## TASK-009 审查（三国杀基本牌定义）
+
+> 370 tests pass，pnpm build 通过。
+> 卡牌定义完整：杀(30) + 闪(15) + 桃(8) + 酒(5) = 58 张，5 个效果。
+> 区域/阶段/资源/胜负条件配置正确。
+
+### REVIEW-046: 效果脚本 EffectDefinition 导入路径错误
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-009
+- **文件**: `decks/sanguosha/effects/sha.ts`, `shan.ts`, `tao.ts`, `jiu.ts`
+- **日期**: 2026-05-18
+- **问题**: 4 个文件全部 `import type { EffectDefinition } from "@cardverse/shared"`，但 EffectDefinition 不存在于 `@cardverse/shared`，它定义在 `@cardverse/deck/src/types.ts`。`tsc --noEmit` 报 4 个 TS2305 错误。
+- **建议**: 改为 `from "@cardverse/deck"` 或将 EffectDefinition 移到 shared 包。
+- **优先级**: 🔴 高（TypeScript 编译错误）
+
+### REVIEW-047: 效果脚本运行时逻辑从未被测试
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-009
+- **文件**: `decks/sanguosha/basic.test.ts`
+- **日期**: 2026-05-18
+- **问题**: 测试仅验证 JSON 数据结构（cards map、effects map、instances），从未 import 或执行效果脚本文件。`context.requestResponse()`、`context.damage()` 等 API 完全没有运行时验证。
+- **建议**: 添加效果脚本的单元测试或集成测试。
+- **优先级**: 🟡 中
+
+### REVIEW-048: EffectContext 接口未定义
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-009
+- **文件**: `decks/sanguosha/effects/*.ts`
+- **日期**: 2026-05-18
+- **问题**: 效果脚本使用了 `context.requestResponse`、`context.damage`、`context.getResource`、`context.setResource`、`context.addModifier`、`context.log` 等 API，但项目中未找到 `EffectContext` 类型定义。
+- **建议**: 在 shared 或 deck 包中定义 `EffectContext` 接口，效果脚本才有类型安全。
+- **优先级**: 🟡 中
+
+---
+
 *审查人: Hermes Agent | 日期: 2026-05-18*
     73|    73|
