@@ -1,0 +1,123 @@
+{
+  "manifest": {
+    "id": "sanguosha",
+    "name": "三国杀",
+    "version": "1.0.0",
+    "author": "CardVerse",
+    "description": "三国杀标准版卡组——包含基本牌（杀、闪、桃、酒）",
+    "minPlayers": 2,
+    "maxPlayers": 8,
+    "frameworkVersion": "1.0.0",
+    "tags": ["sanguosha", "basic", "standard"]
+  },
+  "rules": {
+    "zones": [
+      { "id": "deck", "name": "牌堆", "visibility": "none", "ordered": true, "faceDown": true, "owner": "global" },
+      { "id": "discard", "name": "弃牌堆", "visibility": "all", "ordered": false, "faceDown": false, "owner": "global" },
+      { "id": "hand", "name": "手牌", "visibility": "owner", "ordered": true, "faceDown": false, "owner": "player" },
+      { "id": "equipment", "name": "装备区", "visibility": "all", "ordered": false, "faceDown": false, "owner": "player" },
+      { "id": "judge", "name": "判定区", "visibility": "all", "ordered": true, "faceDown": false, "owner": "player" }
+    ],
+    "phases": [
+      { "id": "prepare", "name": "准备阶段", "auto": true },
+      { "id": "judge", "name": "判定阶段", "auto": true },
+      { "id": "draw", "name": "摸牌阶段", "auto": true },
+      { "id": "play", "name": "出牌阶段", "auto": false },
+      { "id": "discard", "name": "弃牌阶段", "auto": true, "condition": "handCountGtHp" },
+      { "id": "end", "name": "结束阶段", "auto": true }
+    ],
+    "resources": [
+      { "id": "health", "name": "体力", "defaultValue": 3, "min": 0, "max": 5 },
+      { "id": "maxHealth", "name": "体力上限", "defaultValue": 3, "min": 1, "max": 8 }
+    ],
+    "turnOrder": "counterclockwise"
+  },
+  "cards": [
+    {
+      "id": "sha",
+      "name": "杀",
+      "category": "basic",
+      "description": "对攻击范围内一名角色造成1点伤害",
+      "count": 30,
+      "tags": ["attack", "single-target"],
+      "effects": [
+        {
+          "id": "sha_damage",
+          "name": "造成伤害",
+          "type": "damage",
+          "params": { "amount": 1 },
+          "validTargets": "inRange",
+          "script": "effects/sha.js"
+        }
+      ]
+    },
+    {
+      "id": "shan",
+      "name": "闪",
+      "category": "basic",
+      "description": "抵消一张杀的效果",
+      "count": 15,
+      "tags": ["defense", "response"],
+      "effects": [
+        {
+          "id": "shan_dodge",
+          "name": "闪避",
+          "type": "counter",
+          "params": { "sourceType": "damage" },
+          "validTargets": "self",
+          "script": "effects/shan.js"
+        }
+      ]
+    },
+    {
+      "id": "tao",
+      "name": "桃",
+      "category": "basic",
+      "description": "回复1点体力",
+      "count": 8,
+      "tags": ["heal", "self-or-other"],
+      "effects": [
+        {
+          "id": "tao_heal",
+          "name": "回复体力",
+          "type": "heal",
+          "params": { "amount": 1 },
+          "validTargets": "wounded",
+          "script": "effects/tao.js"
+        }
+      ]
+    },
+    {
+      "id": "jiu",
+      "name": "酒",
+      "category": "basic",
+      "description": "本回合下一张杀伤害+1；濒死状态下回复1点体力",
+      "count": 5,
+      "tags": ["buff", "self", "rescue"],
+      "effects": [
+        {
+          "id": "jiu_rescue",
+          "name": "濒死回复",
+          "type": "heal",
+          "params": { "amount": 1, "condition": "dying" },
+          "validTargets": "self",
+          "script": "effects/jiu.js"
+        },
+        {
+          "id": "jiu_buff",
+          "name": "酒劲",
+          "type": "buff",
+          "params": { "damageBonus": 1, "duration": "turn" },
+          "validTargets": "self",
+          "script": "effects/jiu.js"
+        }
+      ]
+    }
+  ],
+  "winConditions": [
+    { "type": "last-standing" }
+  ],
+  "drawConditions": [
+    { "type": "all-dead" }
+  ]
+}

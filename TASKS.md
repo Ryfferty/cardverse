@@ -162,7 +162,7 @@
 ## 阶段 3：三国杀验证卡组
 
 ### TASK-009: 三国杀基本牌定义
-- **状态**: ⬜ 待开始
+- **状态**: ⏳ 进行中
 - **依赖**: TASK-008
 - **包**: `decks/sanguosha`
 - **文件**: `cards/basic.json`, `effects/sha.ts`, `effects/shan.ts`, `effects/tao.ts`, `effects/jiu.ts`

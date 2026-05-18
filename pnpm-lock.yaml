@@ -37,7 +37,21 @@ importers:
         specifier: ^6.3.0
         version: 6.4.2(@types/node@25.8.0)
 
-  decks/sanguosha: {}
+  decks/sanguosha:
+    dependencies:
+      '@cardverse/deck':
+        specifier: workspace:*
+        version: link:../../packages/deck
+      '@cardverse/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+    devDependencies:
+      typescript:
+        specifier: ^5.8.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.1.0
+        version: 3.2.4(@types/node@25.8.0)
 
   packages/core:
     dependencies:
