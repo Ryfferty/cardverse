@@ -1,4 +1,4 @@
-export { DeckLoader } from "./loader.js";
+export { DeckLoader, DeckError } from "./loader.js";
 export { DeckValidator } from "./validator.js";
 export type {
   Deck,

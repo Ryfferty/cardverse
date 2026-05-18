@@ -40,8 +40,9 @@ export class DeckValidator {
 
     // Validate cards
     if (json.cards && Array.isArray(json.cards)) {
-      for (let i = 0; i < (json.cards as any[]).length; i++) {
-        const card = (json.cards as any[])[i];
+      const cardsArr = json.cards as Record<string, unknown>[];
+      for (let i = 0; i < cardsArr.length; i++) {
+        const card = cardsArr[i];
         if (!card.id) {
           warnings.push({ code: "CARD_MISSING_ID", message: `Card at index ${i} has no id, skipping` });
         }

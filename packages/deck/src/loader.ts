@@ -12,8 +12,6 @@ import {
 } from "./types.js";
 import { DeckValidator } from "./validator.js";
 
-let instanceCounter = 0;
-
 export class DeckError extends Error {
   constructor(message: string) {
     super(message);
@@ -21,12 +19,9 @@ export class DeckError extends Error {
   }
 }
 
-interface CardDefinitionWithCount extends CardDefinition {
-  count?: number;
-}
-
 export class DeckLoader {
   private validator = new DeckValidator();
+  private instanceCounter = 0;
 
   loadFromJson(json: Record<string, unknown>): Deck {
     const validation = this.validator.validate(json);
@@ -70,6 +65,10 @@ export class DeckLoader {
     return this.validator.validate(json);
   }
 
+  private safeInt(value: number): number {
+    return Number.isNaN(value) ? 0 : value;
+  }
+
   private parseDeck(json: Record<string, unknown>): Deck {
     const manifest = this.parseManifest(json);
     const rules = this.parseRules(json);
@@ -106,8 +105,8 @@ export class DeckLoader {
       version: String(m.version ?? ""),
       author: String(m.author ?? ""),
       description: String(m.description ?? ""),
-      minPlayers: Number(m.minPlayers ?? 0),
-      maxPlayers: Number(m.maxPlayers ?? 0),
+      minPlayers: this.safeInt(Number(m.minPlayers ?? 0)),
+      maxPlayers: this.safeInt(Number(m.maxPlayers ?? 0)),
       frameworkVersion: String(m.frameworkVersion ?? "1.0.0"),
       tags: Array.isArray(m.tags) ? (m.tags as string[]) : [],
       signature: m.signature as DeckManifest["signature"],
@@ -168,6 +167,9 @@ export class DeckLoader {
         const e = effect as Record<string, unknown>;
         const id = String(e.id ?? "").trim();
         if (!id) continue;
+        if (effects.has(id)) {
+          console.warn(`DeckLoader: duplicate effect id "${id}", overwriting`);
+        }
         effects.set(id, {
           id,
           name: String(e.name ?? id),
@@ -238,7 +240,7 @@ export class DeckLoader {
       if (safeCount <= 0) continue;
 
       for (let i = 0; i < safeCount; i++) {
-        const instanceId: CardInstanceId = `inst_${id}_${++instanceCounter}`;
+        const instanceId: CardInstanceId = `inst_${id}_${++this.instanceCounter}`;
         instances.push({
           instanceId,
           definitionId: id,
