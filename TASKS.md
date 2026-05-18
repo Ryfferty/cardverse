@@ -211,7 +211,7 @@
   - 武器特殊效果脚本正确
 
 ### TASK-012: 三国杀游戏规则与武将定义
-- **状态**: ⬜ 待开始
+- **状态**: ⏳ 进行中
 - **依赖**: TASK-010, TASK-011
 - **包**: `decks/sanguosha`
 - **文件**: `manifest.json`, `rules.json`, `characters/characters.json`

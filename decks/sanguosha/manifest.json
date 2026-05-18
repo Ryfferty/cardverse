@@ -1,0 +1,119 @@
+{
+  "manifest": {
+    "id": "sanguosha-standard",
+    "name": "三国杀标准版",
+    "version": "1.0.0",
+    "author": "CardVerse",
+    "description": "三国杀标准版完整游戏定义，包含58张基本牌、28张锦囊牌、21张装备牌和10名武将",
+    "minPlayers": 2,
+    "maxPlayers": 8,
+    "frameworkVersion": "1.0.0",
+    "tags": ["sanguosha", "standard", "card-game", "strategy"]
+  },
+  "cardPacks": [
+    { "type": "basic", "source": "cards/basic.json" },
+    { "type": "trick", "source": "cards/trick.json" },
+    { "type": "equipment", "source": "cards/equipment.json" }
+  ],
+  "characterPack": {
+    "source": "characters/characters.json"
+  },
+  "rules": {
+    "zones": [
+      { "id": "deck", "name": "牌堆", "visibility": "none", "ordered": true, "faceDown": true, "owner": "global" },
+      { "id": "discard", "name": "弃牌堆", "visibility": "all", "ordered": false, "faceDown": false, "owner": "global" },
+      { "id": "hand", "name": "手牌", "visibility": "owner", "ordered": true, "faceDown": false, "owner": "player" },
+      { "id": "equipment", "name": "装备区", "visibility": "all", "ordered": false, "faceDown": false, "owner": "player" },
+      { "id": "judge", "name": "判定区", "visibility": "all", "ordered": true, "faceDown": false, "owner": "player" },
+      { "id": "skills", "name": "技能区", "visibility": "all", "ordered": false, "faceDown": false, "owner": "player" }
+    ],
+    "phases": [
+      { "id": "prepare", "name": "准备阶段", "auto": true },
+      { "id": "judge", "name": "判定阶段", "auto": true },
+      { "id": "draw", "name": "摸牌阶段", "auto": true, "drawCount": 2 },
+      { "id": "play", "name": "出牌阶段", "auto": false },
+      { "id": "discard", "name": "弃牌阶段", "auto": true },
+      { "id": "end", "name": "结束阶段", "auto": true }
+    ],
+    "resources": [
+      { "id": "health", "name": "体力", "defaultValue": 4, "min": 0, "max": 10 },
+      { "id": "maxHealth", "name": "体力上限", "defaultValue": 4, "min": 1, "max": 10 },
+      { "id": "energy", "name": "能量", "defaultValue": 0, "min": 0, "max": 10 }
+    ],
+    "turnOrder": "counterclockwise",
+    "gameFlow": {
+      "setup": {
+        "shuffleDeck": true,
+        "initialHandSize": 4,
+        "firstPlayerDraw": true
+      },
+      "turn": {
+        "maxShaPerTurn": 1,
+        "canEquipDuringPlay": true,
+        "canUseSkills": true
+      },
+      "death": {
+        "dropAllCards": true,
+        "drawReward": 3
+      },
+      "specialActions": {
+        "jueDouTargetCount": 1,
+        "nanmanTargetCount": "all_enemies",
+        "wanjianTargetCount": "all_others"
+      }
+    },
+    "cardLimits": {
+      "maxHandCards": "equalToHealth",
+      "maxEquipmentPerSlot": 1,
+      "maxMounts": 2
+    }
+  },
+  "winConditions": [
+    { "type": "last-standing", "description": "当场上只剩一名角色存活时，该角色获胜" },
+    { "type": "no-enemies", "description": "当所有敌方角色阵亡时获胜" }
+  ],
+  "drawConditions": [
+    { "type": "all-dead", "description": "当所有角色都阵亡时游戏平局" },
+    { "type": "deck-empty", "description": "当牌堆用尽且无法继续游戏时平局" }
+  ],
+  "effects": {
+    "scripts": [
+      "effects/sha.ts",
+      "effects/shan.ts",
+      "effects/tao.ts",
+      "effects/jiu.ts",
+      "effects/dismantle.ts",
+      "effects/steal.ts",
+      "effects/draw.ts",
+      "effects/counter.ts",
+      "effects/duel.ts",
+      "effects/nanman.ts",
+      "effects/wanjian.ts",
+      "effects/taoyuan.ts",
+      "effects/zhugeliannu.ts",
+      "effects/qinggang.ts",
+      "effects/cixiong.ts",
+      "effects/zhangba.ts",
+      "effects/guanshi.ts",
+      "effects/fangtian.ts",
+      "effects/qinglong.ts",
+      "effects/qilin.ts",
+      "effects/bagua.ts",
+      "effects/renwang.ts",
+      "effects/baiyin.ts",
+      "effects/tengjia.ts",
+      "effects/plus1horse.ts",
+      "effects/minus1horse.ts",
+      "effects/caocao.ts",
+      "effects/guanyu.ts",
+      "effects/zhangfei.ts",
+      "effects/zhaoyun.ts",
+      "effects/zhugekongming.ts",
+      "effects/huangzhong.ts",
+      "effects/zhugejin.ts",
+      "effects/zhouyu.ts",
+      "effects/sunquan.ts",
+      "effects/liubei.ts"
+    ]
+  }
+}

@@ -1,0 +1,248 @@
+{
+  "manifest": {
+    "id": "sanguosha-characters-standard",
+    "name": "三国杀标准版武将",
+    "version": "1.0.0",
+    "author": "CardVerse",
+    "description": "三国杀标准版10名武将定义",
+    "factionOrder": ["wei", "shu", "wu"]
+  },
+  "characters": [
+    {
+      "id": "caocao",
+      "name": "曹操",
+      "faction": "wei",
+      "factionName": "魏国",
+      "health": 4,
+      "description": "乱世之奸雄，治世之能臣",
+      "skills": [
+        {
+          "id": "jueji",
+          "name": "奸雄",
+          "description": "当你受到伤害后，你可以获得造成此伤害的牌",
+          "type": "passive",
+          "trigger": "onDamageReceived",
+          "validTargets": "self",
+          "script": "effects/caocao.js"
+        }
+      ],
+      "tags": ["leader", "control", "draw"]
+    },
+    {
+      "id": "liubei",
+      "name": "刘备",
+      "faction": "shu",
+      "factionName": "蜀国",
+      "health": 4,
+      "description": "仁德布于天下，信义著于四海",
+      "skills": [
+        {
+          "id": "rende",
+          "name": "仁德",
+          "description": "出牌阶段限一次，你可以将任意数量的手牌交给其他角色。给出两张或更多手牌时，你回复1点体力",
+          "type": "active",
+          "trigger": "playPhase",
+          "validTargets": "allOthers",
+          "script": "effects/liubei.js"
+        }
+      ],
+      "tags": ["leader", "support", "heal"]
+    },
+    {
+      "id": "sunquan",
+      "name": "孙权",
+      "faction": "wu",
+      "factionName": "吴国",
+      "health": 4,
+      "description": "能屈能伸，知人善任",
+      "skills": [
+        {
+          "id": "zhiheng",
+          "name": "制衡",
+          "description": "出牌阶段限一次，你可以弃置任意数量的牌，然后摸等量的牌",
+          "type": "active",
+          "trigger": "playPhase",
+          "validTargets": "self",
+          "script": "effects/sunquan.js"
+        }
+      ],
+      "tags": ["leader", "draw", "flexible"]
+    },
+    {
+      "id": "guanyu",
+      "name": "关羽",
+      "faction": "shu",
+      "factionName": "蜀国",
+      "health": 4,
+      "description": "忠义无双，威震华夏",
+      "skills": [
+        {
+          "id": "wusheng",
+          "name": "武圣",
+          "description": "你可以将红色牌当杀使用或打出",
+          "type": "passive",
+          "trigger": "playSha",
+          "validTargets": "self",
+          "script": "effects/guanyu.js"
+        }
+      ],
+      "tags": ["attack", "damage", "weapon"]
+    },
+    {
+      "id": "zhangfei",
+      "name": "张飞",
+      "faction": "shu",
+      "factionName": "蜀国",
+      "health": 4,
+      "description": "燕人张翼德在此",
+      "skills": [
+        {
+          "id": "baqi",
+          "name": "咆哮",
+          "description": "锁定技，你使用杀无次数限制",
+          "type": "passive",
+          "trigger": "playSha",
+          "validTargets": "self",
+          "script": "effects/zhangfei.js"
+        }
+      ],
+      "tags": ["attack", "spam", "unlimited"]
+    },
+    {
+      "id": "zhaoyun",
+      "name": "赵云",
+      "faction": "shu",
+      "factionName": "蜀国",
+      "health": 4,
+      "description": "一身是胆，勇冠三军",
+      "skills": [
+        {
+          "id": "longdan",
+          "name": "龙胆",
+          "description": "你可以将杀当闪使用或打出，也可以将闪当杀使用或打出",
+          "type": "passive",
+          "trigger": "playShaOrShan",
+          "validTargets": "self",
+          "script": "effects/zhaoyun.js"
+        }
+      ],
+      "tags": ["defense", "flexible", "balanced"]
+    },
+    {
+      "id": "zhugekongming",
+      "name": "诸葛亮",
+      "faction": "shu",
+      "factionName": "蜀国",
+      "health": 3,
+      "description": "运筹帷幄，决胜千里",
+      "skills": [
+        {
+          "id": "kongming",
+          "name": "空城",
+          "description": "锁定技，当你没有手牌时，你不能被选为杀或决斗的目标",
+          "type": "passive",
+          "trigger": "becomeTarget",
+          "validTargets": "self",
+          "script": "effects/zhugekongming.js"
+        },
+        {
+          "id": "zhiyuan",
+          "name": "志远",
+          "description": "摸牌阶段，你可以少摸一张牌，然后观看牌堆顶的三张牌，将其中任意数量的牌置于牌堆顶，其余置于牌堆底",
+          "type": "active",
+          "trigger": "drawPhase",
+          "validTargets": "self",
+          "script": "effects/zhugekongming.js"
+        }
+      ],
+      "tags": ["control", "defense", "intelligence"]
+    },
+    {
+      "id": "zhouyu",
+      "name": "周瑜",
+      "faction": "wu",
+      "factionName": "吴国",
+      "health": 3,
+      "description": "雄姿英发，羽扇纶巾",
+      "skills": [
+        {
+          "id": "fengshen",
+          "name": "英姿",
+          "description": "摸牌阶段，你可以多摸一张牌",
+          "type": "passive",
+          "trigger": "drawPhase",
+          "validTargets": "self",
+          "script": "effects/zhouyu.js"
+        },
+        {
+          "id": "tandu",
+          "name": "反间",
+          "description": "出牌阶段限一次，你可以令一名其他角色选择一种花色，然后你亮出一张手牌。若此牌花色与其选择相同，你对其造成1点伤害；否则该角色获得此牌",
+          "type": "active",
+          "trigger": "playPhase",
+          "validTargets": "other",
+          "script": "effects/zhouyu.js"
+        }
+      ],
+      "tags": ["draw", "damage", "skill"]
+    },
+    {
+      "id": "zhugejin",
+      "name": "诸葛瑾",
+      "faction": "wu",
+      "factionName": "吴国",
+      "health": 3,
+      "description": "敦厚长者，谦和君子",
+      "skills": [
+        {
+          "id": "boshu",
+          "name": "博术",
+          "description": "摸牌阶段，你可以少摸一张牌，然后从牌堆顶获得一张锦囊牌",
+          "type": "active",
+          "trigger": "drawPhase",
+          "validTargets": "self",
+          "script": "effects/zhugejin.js"
+        },
+        {
+          "id": "heshi",
+          "name": "和事",
+          "description": "出牌阶段限一次，你可以选择一名角色，令其摸两张牌，然后其选择一张手牌交给你",
+          "type": "active",
+          "trigger": "playPhase",
+          "validTargets": "other",
+          "script": "effects/zhugejin.js"
+        }
+      ],
+      "tags": ["support", "draw", "exchange"]
+    },
+    {
+      "id": "huangzhong",
+      "name": "黄忠",
+      "faction": "shu",
+      "factionName": "蜀国",
+      "health": 4,
+      "description": "老当益壮，百步穿杨",
+      "skills": [
+        {
+          "id": "louyuan",
+          "name": "燎原",
+          "description": "锁定技，你使用的杀目标数+1",
+          "type": "passive",
+          "trigger": "playSha",
+          "validTargets": "self",
+          "script": "effects/huangzhong.js"
+        },
+        {
+          "id": "baibu",
+          "name": "百步",
+          "description": "当你使用杀指定一名角色为目标后，你可以进行判定：若结果为红色，此杀伤害+1",
+          "type": "active",
+          "trigger": "playSha",
+          "validTargets": "enemy",
+          "script": "effects/huangzhong.js"
+        }
+      ],
+      "tags": ["attack", "damage", "precision"]
+    }
+  ]
+}
