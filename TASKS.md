@@ -197,7 +197,7 @@
   - 效果脚本语法正确
 
 ### TASK-011: 三国杀装备牌定义
-- **状态**: ⏳ 进行中
+- **状态**: ✅ 完成
 - **依赖**: TASK-009
 - **包**: `decks/sanguosha`
 - **文件**: `cards/equipment.json`, `effects/*.ts`
