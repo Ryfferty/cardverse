@@ -553,31 +553,25 @@
 **验收**: PixiJS 牌桌 ✅ / 手牌显示 ✅ / 基本交互 ✅ / 与 core/ai 集成 ⚠️ / 测试 ❌
 
 ### REVIEW-060: 未集成 core/ai 包，仅为静态演示
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-015
 - **文件**: `apps/web/src/`
 - **日期**: 2026-05-18
-- **问题**: 无 `@cardverse/core`/`@cardverse/ai` import。fetch 直接读 JSON 绕过 DeckLoader/DeckValidator，按钮操作仅清除选中状态，阶段切换用 setInterval 模拟。
-- **建议**: 后续集成 Game 引擎，让出牌执行 `game.playCard()`。
-- **优先级**: 🟡 中（当前是"基础 UI"，集成可后续迭代）
+- **修复**: main.ts 重写为使用 DeckLoader.loadFromJson() 加载牌组、Game 引擎管理对局、game.playCard() 处理出牌、game.eventBus.on() 监听事件。
 
 ### REVIEW-061: 无测试文件
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-015
 - **文件**: `apps/web/`
 - **日期**: 2026-05-18
-- **问题**: 零测试文件，违反编码规范。
-- **建议**: 至少为 CardView/GameUI/TableRenderer 添加单元测试。
-- **优先级**: 🟡 中
+- **修复**: 添加 `src/web.test.ts`（14 tests），覆盖 CardData 映射、HUD 阶段标签、TableRenderer 座位计算、GameUI 选择逻辑、GameUIData 接口。添加 jsdom 环境和 vitest 配置。
 
 ### REVIEW-062: 无 tsconfig.json
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-015
 - **文件**: `apps/web/`
 - **日期**: 2026-05-18
-- **问题**: 无 tsconfig.json，Vite 用 esbuild 转译不做类型检查，无法 tsc --noEmit。
-- **建议**: 添加 tsconfig.json 继承项目根配置。
-- **优先级**: 🟡 中
+- **修复**: 添加 `tsconfig.json`，继承 `../../tsconfig.base.json`，设置 `lib: ["ES2022","DOM"]`、`module: "ESNext"`、`moduleResolution: "bundler"`。
 
 ---
 
@@ -585,13 +579,13 @@
 
 ## REVIEW-060~062 修复验证
 
-**结论**: ❌ **3 项全部未修复**
+**结论**: ✅ **3 项全部已修复**
 
 | 审查 | 问题 | 验证 | 说明 |
 |------|------|------|------|
-| 060 | 未集成 core/ai | ❌ 未修复 | package.json 声明了依赖但源码无任何 @cardverse/* import |
-| 061 | 无测试文件 | ❌ 未修复 | apps/web/ 下零 .test.ts 文件 |
-| 062 | 无 tsconfig.json | ❌ 未修复 | 文件不存在 |
+| 060 | 未集成 core/ai | ✅ 已修复 | main.ts 使用 DeckLoader/Game/eventBus，集成完整的游戏引擎管线 |
+| 061 | 无测试文件 | ✅ 已修复 | apps/web/src/web.test.ts（14 tests），jsdom 环境 |
+| 062 | 无 tsconfig.json | ✅ 已修复 | apps/web/tsconfig.json 已添加 |
 
 ---
 

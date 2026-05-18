@@ -1,5 +1,5 @@
 {
-  "name": "@cardverse/web",
+  "name": "@cardverse/editor",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,14 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run"
   },
-  "dependencies": {
-    "@cardverse/core": "workspace:*",
-    "@cardverse/deck": "workspace:*",
-    "@cardverse/shared": "workspace:*",
-    "pixi.js": "^8.6.0"
-  },
   "devDependencies": {
-    "jsdom": "^29.1.1",
     "typescript": "^5.8.0",
     "vite": "^6.3.0",
     "vitest": "^3.1.0"
