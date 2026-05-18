@@ -182,5 +182,67 @@
 
 ---
 
+---
+
+## TASK-007 审查（卡组加载器）
+
+> 290 tests pass (core: 253 + deck: 37)，pnpm build 通过，tsc --noEmit 通过。
+
+### REVIEW-036: 模块级 instanceCounter 全局状态污染
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-007
+- **文件**: `loader.ts:15`
+- **日期**: 2026-05-18
+- **问题**: `let instanceCounter = 0` 是模块级可变变量，跨 DeckLoader 实例共享，测试间不重置，长时间运行 ID 会无限增长。
+- **建议**: 改为实例级属性 `private instanceCounter = 0`，或用 `crypto.randomUUID()`。
+- **优先级**: 🔴 高（全局状态）
+
+### REVIEW-037: DeckError 未从 index.ts 导出
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-007
+- **文件**: `index.ts`
+- **日期**: 2026-05-18
+- **问题**: DeckError 是公共 API 的一部分（消费者需要 catch 它），但 index.ts 没有导出。
+- **建议**: 添加 `export { DeckError } from "./loader.js";`
+- **优先级**: 🔴 高（API 完整性）
+
+### REVIEW-038: validator.ts 使用 `as any[]` 违反编码规范
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-007
+- **文件**: `validator.ts:43-44`
+- **日期**: 2026-05-18
+- **问题**: `(json.cards as any[]).length` — AGENTS.md 明确要求"避免 any，使用 unknown"。loader.ts 已用 `unknown` 实现同等逻辑。
+- **建议**: 改为 `as unknown[]` 或 `as Record<string, unknown>[]`。
+- **优先级**: 🔴 高（编码规范）
+
+### REVIEW-039: parseManifest 未防御 NaN
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-007
+- **文件**: `loader.ts:109-110`
+- **日期**: 2026-05-18
+- **问题**: `Number(m.minPlayers ?? 0)` — 如果值是非数字字符串，返回 NaN 并传播到 Deck 中。
+- **建议**: `Number(m.minPlayers ?? 0) || 0` 或 isNaN 检查。
+- **优先级**: 🟡 中
+
+### REVIEW-040: 重复 effect ID 静默覆盖
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-007
+- **文件**: `loader.ts:159-183`
+- **日期**: 2026-05-18
+- **问题**: parseEffects 中不同卡定义相同 id 的效果，后者静默覆盖前者，无警告。
+- **建议**: 遇到重复 effect ID 时 `console.warn`。
+- **优先级**: 🟡 中
+
+### REVIEW-041: CardDefinitionWithCount 接口死代码
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-007
+- **文件**: `loader.ts:24-26`
+- **日期**: 2026-05-18
+- **问题**: 定义了 `CardDefinitionWithCount` 接口但从未使用，`instantiateCards` 直接从原始 JSON 读 count。
+- **建议**: 删除。
+- **优先级**: 🟢 低
+
+---
+
 *审查人: Hermes Agent | 日期: 2026-05-18*
     73|    73|
