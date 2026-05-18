@@ -140,7 +140,7 @@
   - 测试覆盖正常和异常场景
 
 ### TASK-008: 卡组验证器完善与测试
-- **状态**: ⏳ 进行中
+- **状态**: ✅ 完成
 - **依赖**: TASK-007
 - **包**: `packages/deck`
 - **文件**: `src/validator.ts`, `src/validator.test.ts`
