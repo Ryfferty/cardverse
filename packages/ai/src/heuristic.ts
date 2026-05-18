@@ -41,7 +41,9 @@ export class HeuristicAI implements AIAdapter {
   private getEnemies(): AIPlayerInfo[] {
     if (!this.gameView) return [];
     const self = this.getSelf();
-    return this.gameView.players.filter((p) => p.alive && p.playerId !== self.playerId && p.faction !== self.faction);
+    return this.gameView.players
+      .filter((p) => p.alive && p.playerId !== self.playerId && p.faction !== self.faction)
+      .sort((a, b) => a.health - b.health);
   }
 
   private getAllies(): AIPlayerInfo[] {
@@ -122,7 +124,7 @@ export class HeuristicAI implements AIAdapter {
         const cardType = event.data.cardType as string | undefined;
 
         if (cardType === "sha" && this.hasCardType("shan")) {
-          if (self.health <= 1 || self.health <= 2) {
+          if (self.health <= 1) {
             const shanCards = this.findCardsByType("shan");
             return {
               playerId: self.playerId,
@@ -165,6 +167,16 @@ export class HeuristicAI implements AIAdapter {
             playerId: self.playerId,
             action: "play",
             cardId: shanCards[0].instanceId,
+          };
+        }
+
+        const harmfulTricks = ["dismantle", "steal", "duel", "nanman", "wanjian"];
+        if (cardType && harmfulTricks.includes(cardType) && this.hasCardType("wuxie")) {
+          const wuxieCards = this.findCardsByType("wuxie");
+          return {
+            playerId: self.playerId,
+            action: "play",
+            cardId: wuxieCards[0].instanceId,
           };
         }
       }

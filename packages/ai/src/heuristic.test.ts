@@ -401,5 +401,79 @@ describe("HeuristicAI", () => {
       expect(action.type).toBe("playCard");
       expect(action.targets).toEqual(["p3"]);
     });
+
+    it("should prioritize low-health enemies", async () => {
+      const view = makeGameView("p1", {
+        players: [
+          makePlayer("p1", { health: 4, maxHealth: 4, faction: "shu" }),
+          makePlayer("p2", { health: 4, maxHealth: 4, faction: "wei" }),
+          makePlayer("p3", { health: 1, maxHealth: 4, faction: "wei" }),
+        ],
+      });
+      ai.setHandCards([makeHandCard("inst_sha_1", "sha")]);
+
+      const action = await ai.decideAction(view);
+
+      expect(action.type).toBe("playCard");
+      expect(action.targets).toEqual(["p3"]);
+    });
+  });
+
+  describe("wuxie response handling", () => {
+    it("should play wuxie when harmful trick is played and wuxie in hand", async () => {
+      const view = makeGameView("p1");
+      ai.setHandCards([makeHandCard("inst_wuxie_1", "wuxie", "trick", "无懈可击")]);
+
+      const event: any = {
+        id: "ev_dismantle",
+        type: "card:played",
+        data: { cardType: "dismantle", cardId: "inst_dismantle" },
+        timestamp: Date.now(),
+        stackDepth: 1,
+      };
+
+      const response = await ai.decideResponse(view, event);
+
+      expect(response).not.toBeNull();
+      expect(response!.action).toBe("play");
+      expect(response!.cardId).toBe("inst_wuxie_1");
+    });
+
+    it("should play wuxie when duel is played and wuxie in hand", async () => {
+      const view = makeGameView("p1");
+      ai.setHandCards([makeHandCard("inst_wuxie_1", "wuxie", "trick", "无懈可击")]);
+
+      const event: any = {
+        id: "ev_duel",
+        type: "card:played",
+        data: { cardType: "duel", cardId: "inst_duel" },
+        timestamp: Date.now(),
+        stackDepth: 1,
+      };
+
+      const response = await ai.decideResponse(view, event);
+
+      expect(response).not.toBeNull();
+      expect(response!.action).toBe("play");
+      expect(response!.cardId).toBe("inst_wuxie_1");
+    });
+
+    it("should not play wuxie for non-harmful card types", async () => {
+      const view = makeGameView("p1");
+      ai.setHandCards([makeHandCard("inst_wuxie_1", "wuxie", "trick", "无懈可击")]);
+
+      const event: any = {
+        id: "ev_taoyuan",
+        type: "card:played",
+        data: { cardType: "taoyuan", cardId: "inst_taoyuan" },
+        timestamp: Date.now(),
+        stackDepth: 1,
+      };
+
+      const response = await ai.decideResponse(view, event);
+
+      expect(response).not.toBeNull();
+      expect(response!.action).toBe("pass");
+    });
   });
 });
