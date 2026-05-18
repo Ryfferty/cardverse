@@ -22,6 +22,7 @@ export class PhaseManager {
   private currentIndex = 0;
   private turnNumber = 0;
   private currentPlayerId: PlayerId = "";
+  private lastTurnInfo: TurnInfo | undefined;
 
   setPhases(phases: PhaseDefinition[]): void {
     for (const phase of phases) {
@@ -45,8 +46,12 @@ export class PhaseManager {
    * Get the current turn info.
    */
   getTurnInfo(): TurnInfo | undefined {
+    if (this.turnNumber <= 0) return undefined;
     const phase = this.getCurrentPhase();
-    if (!phase) return undefined;
+    if (!phase) {
+      if (!this.lastTurnInfo) return undefined;
+      return { ...this.lastTurnInfo };
+    }
     return {
       playerId: this.currentPlayerId,
       phaseIndex: this.currentIndex,
@@ -62,6 +67,12 @@ export class PhaseManager {
     this.currentPlayerId = playerId;
     this.turnNumber = turnNumber;
     this.currentIndex = 0;
+    this.lastTurnInfo = {
+      playerId,
+      phaseIndex: 0,
+      phaseId: this.phases[0]?.id ?? "",
+      turnNumber,
+    };
   }
 
   /**
@@ -72,7 +83,6 @@ export class PhaseManager {
     gameState?: Record<string, unknown>
   ): PhaseDefinition | undefined {
     this.currentIndex++;
-    // Check dynamic phases
     while (this.currentIndex < this.phases.length) {
       const phase = this.phases[this.currentIndex];
       if (phase.condition && gameState) {
@@ -81,9 +91,22 @@ export class PhaseManager {
           continue;
         }
       }
+      this.lastTurnInfo = {
+        playerId: this.currentPlayerId,
+        phaseIndex: this.currentIndex,
+        phaseId: phase.id,
+        turnNumber: this.turnNumber,
+      };
       return phase;
     }
-    return undefined; // Turn over
+    // Turn over — store last info for endTurn()
+    this.lastTurnInfo = {
+      playerId: this.currentPlayerId,
+      phaseIndex: this.phases.length,
+      phaseId: "",
+      turnNumber: this.turnNumber,
+    };
+    return undefined;
   }
 
   /**
@@ -151,6 +174,7 @@ export class PhaseManager {
     this.currentIndex = 0;
     this.turnNumber = 0;
     this.currentPlayerId = "";
+    this.lastTurnInfo = undefined;
   }
 
   /**

@@ -45,6 +45,42 @@ export class StateManager {
   }
 
   /**
+   * Add a player during setup phase (before game starts).
+   * Bypasses event sourcing for initialization.
+   */
+  addPlayer(player: PlayerState): void {
+    this.currentState.players.set(player.id, player);
+  }
+
+  /**
+   * Set a zone for a player during setup phase.
+   */
+  setPlayerZone(playerId: PlayerId, zoneId: string, zone: ZoneState): void {
+    const player = this.currentState.players.get(playerId);
+    if (player) {
+      player.zones.set(zoneId, zone);
+    }
+  }
+
+  /**
+   * Set a global zone during setup phase.
+   */
+  setGlobalZone(zoneId: string, zone: ZoneState): void {
+    this.currentState.globalZones.set(zoneId, zone);
+  }
+
+  /**
+   * Update a player's hand count from their hand zone.
+   */
+  updatePlayerHandCount(playerId: PlayerId): void {
+    const player = this.currentState.players.get(playerId);
+    if (player) {
+      const handZone = player.zones.get("hand");
+      player.handCount = handZone ? handZone.cards.length : 0;
+    }
+  }
+
+  /**
    * Apply an event, producing a new state.
    */
   applyEvent(event: GameEvent): GameState {

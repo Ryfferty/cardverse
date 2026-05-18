@@ -161,9 +161,8 @@ describe("ResourceManager", () => {
       expect(manager.getValue("player1", "health")).toBe(5);
     });
 
-    it("should return 0 for non-existent resource", async () => {
-      const result = await manager.modify("player1", "mana", 1);
-      expect(result).toBe(0);
+    it("should throw for non-existent resource", async () => {
+      await expect(manager.modify("player1", "mana", 1)).rejects.toThrow("not initialized");
     });
 
     it("should emit RESOURCE_CHANGED event", async () => {
@@ -330,10 +329,10 @@ describe("ResourceManager", () => {
   });
 
   describe("resetToDefault", () => {
-    it("should reset to default value", () => {
+    it("should reset to default value", async () => {
       manager.registerDefinition(manaDef);
       manager.initResource("player1", "mana");
-      manager.resetToDefault("player1", "mana"); // initial value was 1
+      await manager.resetToDefault("player1", "mana");
 
       expect(manager.getValue("player1", "mana")).toBe(1);
     });
@@ -341,21 +340,39 @@ describe("ResourceManager", () => {
     it("should reset after modifying", async () => {
       manager.registerDefinition(healthDef);
       manager.initResource("player1", "health");
-      await manager.modify("player1", "health", -2); // 3 - 2 = 1
+      await manager.modify("player1", "health", -2);
 
-      manager.resetToDefault("player1", "health");
+      await manager.resetToDefault("player1", "health");
       expect(manager.getValue("player1", "health")).toBe(3);
     });
 
-    it("should return undefined for non-initialized resource", () => {
-      const result = manager.resetToDefault("player1", "health");
+    it("should return undefined for non-initialized resource", async () => {
+      const result = await manager.resetToDefault("player1", "health");
       expect(result).toBeUndefined();
     });
 
-    it("should return undefined for unknown definition", () => {
-      manager.initResource("player1", "health"); // no definition registered
-      const result = manager.resetToDefault("player1", "health");
+    it("should return undefined for unknown definition", async () => {
+      manager.initResource("player1", "health");
+      const result = await manager.resetToDefault("player1", "health");
       expect(result).toBeUndefined();
+    });
+
+    it("should emit RESOURCE_CHANGED event on resetToDefault", async () => {
+      manager.registerDefinition(healthDef);
+      manager.initResource("player1", "health");
+      await manager.modify("player1", "health", -2);
+
+      let capturedEvent: any = null;
+      eventBus.on("*", async (event) => {
+        if (event.data?.resourceId === "health" && event.source === "reset") {
+          capturedEvent = event;
+        }
+      });
+
+      await manager.resetToDefault("player1", "health");
+      expect(capturedEvent).toBeDefined();
+      expect(capturedEvent.type).toBe("resource:changed");
+      expect(capturedEvent.data.newValue).toBe(3);
     });
   });
 
@@ -448,7 +465,7 @@ describe("ResourceManager", () => {
       expect(manager.getValue("p2", "health")).toBe(0); // clamped to min
 
       // Reset to defaults and clear
-      manager.resetToDefault("p1", "health");
+      await manager.resetToDefault("p1", "health");
       expect(manager.getValue("p1", "health")).toBe(3);
 
       manager.clear();

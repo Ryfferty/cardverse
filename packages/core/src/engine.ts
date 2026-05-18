@@ -9,6 +9,7 @@ import {
   type PhaseDefinition,
   type EventResponse,
   type CardInstanceId,
+  type EventTypeValue,
   EventType,
   DEFAULT_MAX_EFFECT_STEPS,
   DEFAULT_RESPONSE_TIMEOUT,
@@ -22,10 +23,6 @@ import { ResourceManager } from "./resources.js";
 
 let gameIdCounter = 0;
 
-/**
- * Game — the main engine class.
- * Orchestrates all subsystems: events, state, zones, phases, resources.
- */
 export class Game {
   readonly config: GameConfig;
   readonly eventBus: EventBus;
@@ -53,9 +50,6 @@ export class Game {
     this.resources = new ResourceManager(this.eventBus);
   }
 
-  /**
-   * Create a new game instance.
-   */
   static create(config: GameConfig): Game {
     const gameId = `game_${++gameIdCounter}_${Date.now()}`;
     const initialState: GameState = {
@@ -70,9 +64,9 @@ export class Game {
   }
 
   /**
-   * Add a player to the game.
+   * Add a player. Must be called before start().
    */
-  addPlayer(playerId: PlayerId, name: string): void {
+  addPlayer(playerId: PlayerId, name: string): PlayerState {
     const currentState = this.state.getCurrentState();
     if (currentState.status !== "waiting") {
       throw new Error("Cannot add players after game has started");
@@ -86,29 +80,65 @@ export class Game {
       resources: new Map(),
       handCount: 0,
     };
-    currentState.players.set(playerId, player);
-    // Update the internal state (bypassing event log for setup)
-    (this.state as any).currentState = currentState;
+    this.state.addPlayer(player);
+    return player;
   }
 
   /**
-   * Start the game.
+   * Initialize zone definitions from the game config.
+   */
+  initZones(zoneDefs: ZoneDefinition[]): void {
+    for (const def of zoneDefs) {
+      if (def.owner === "global") {
+        this.zones.addGlobalZone(def);
+      }
+    }
+  }
+
+  /**
+   * Initialize zone definitions for a player.
+   */
+  initPlayerZones(playerId: PlayerId, zoneDefs: ZoneDefinition[]): void {
+    for (const def of zoneDefs) {
+      if (def.owner === "player") {
+        this.zones.addPlayerZone(playerId, def);
+      }
+    }
+  }
+
+  /**
+   * Initialize resource definitions.
+   */
+  initResources(resourceDefs: ResourceDefinition[]): void {
+    for (const def of resourceDefs) {
+      this.resources.registerDefinition(def);
+    }
+  }
+
+  /**
+   * Set up phases from definitions.
+   */
+  initPhases(phaseDefs: PhaseDefinition[]): void {
+    this.phases.setPhases(phaseDefs);
+  }
+
+  /**
+   * Start the game. Emits GAME_START event.
    */
   async start(): Promise<void> {
     const currentState = this.state.getCurrentState();
     if (currentState.players.size < 2) {
-      throw new Error("Need at least 2 players to start");
+      throw new Error(`Need at least 2 players to start (have ${currentState.players.size})`);
     }
 
-    const event: Omit<GameEvent, "id" | "timestamp" | "stackDepth"> = {
+    await this.emitAndApply({
       type: EventType.GAME_START,
       data: { playerCount: currentState.players.size },
-    };
-    await this.emitAndApply(event);
+    });
   }
 
   /**
-   * End the game with a result.
+   * End the game. Emits GAME_END event.
    */
   async end(winner: string, winCondition: string): Promise<void> {
     await this.emitAndApply({
@@ -118,7 +148,85 @@ export class Game {
   }
 
   /**
-   * Play a card.
+   * Start a new turn for a player.
+   */
+  async startTurn(playerId: PlayerId): Promise<void> {
+    const gameState = this.state.getCurrentState();
+    const turnNumber = gameState.turnNumber + 1;
+
+    await this.emitAndApply({
+      type: EventType.TURN_START,
+      source: playerId,
+      data: { playerId, phaseId: this.phases.getCurrentPhase()?.id ?? "" },
+    });
+
+    this.phases.startTurn(playerId, turnNumber);
+
+    await this.emitAndApply({
+      type: EventType.PHASE_START,
+      source: playerId,
+      data: {
+        phaseIndex: 0,
+        phaseId: this.phases.getCurrentPhase()?.id ?? "",
+      },
+    });
+  }
+
+  /**
+   * Advance to the next phase.
+   */
+  async nextPhase(gameStateOverride?: Record<string, unknown>): Promise<boolean> {
+    const phase = this.phases.nextPhase(gameStateOverride);
+    if (!phase) {
+      return false;
+    }
+
+    await this.emitAndApply({
+      type: EventType.PHASE_START,
+      data: {
+        phaseIndex: this.phases.getCurrentPhaseIndex(),
+        phaseId: phase.id,
+      },
+    });
+    return true;
+  }
+
+  /**
+   * End the current turn.
+   */
+  async endTurn(): Promise<void> {
+    const info = this.phases.getTurnInfo();
+    if (!info) return;
+
+    const playerIds = Array.from(this.state.getCurrentState().players.keys());
+    if (playerIds.length > 0) {
+      await this.resources.applyRegen(playerIds);
+    }
+
+    await this.emitAndApply({
+      type: EventType.TURN_END,
+      source: info.playerId,
+      data: { playerId: info.playerId },
+    });
+
+    // Check for eliminated players
+    for (const pid of playerIds) {
+      const health = this.resources.getValue(pid, "health");
+      if (health !== undefined && health <= 0) {
+        const player = this.state.getCurrentState().players.get(pid);
+        if (player && player.status === "alive") {
+          await this.emitAndApply({
+            type: EventType.PLAYER_ELIMINATED,
+            target: pid,
+            data: { playerId: pid },
+          });
+        }
+      }
+    }
+  }
+
+  /**
+   * Play a card from a player's hand.
    */
   async playCard(
     playerId: PlayerId,
@@ -128,27 +236,37 @@ export class Game {
     await this.emitAndApply({
       type: EventType.CARD_PLAYED,
       source: playerId,
-      data: { cardInstanceId, targets },
+      data: { cardId: cardInstanceId, playerId, targets },
     });
   }
 
   /**
-   * Respond to an event (e.g., play "shan" in response to "sha").
+   * Draw cards for a player.
    */
-  respondToEvent(eventId: string, response: EventResponse): void {
-    this.eventBus.emit({
-      id: `resp_${Date.now()}`,
+  async drawCard(
+    playerId: PlayerId,
+    cardId: CardInstanceId
+  ): Promise<void> {
+    await this.emitAndApply({
+      type: EventType.CARD_DRAWN,
+      source: playerId,
+      data: { cardId, playerId },
+    });
+  }
+
+  /**
+   * Respond to an event. Uses emitAndApply for state tracking.
+   */
+  async respondToEvent(eventId: string, response: EventResponse): Promise<void> {
+    await this.emitAndApply({
       type: EventType.RESPONSE_GIVEN,
       source: response.playerId,
-      target: undefined,
       data: { eventId, response },
-      timestamp: Date.now(),
-      stackDepth: 0,
     });
   }
 
   /**
-   * Get current game state.
+   * Get current game state (full).
    */
   getState(): GameState {
     return this.state.getCurrentState();
@@ -183,13 +301,14 @@ export class Game {
   }
 
   /**
-   * Emit an event, apply it to state, and push to stack.
+   * Emit an event through the full pipeline: push to stack, apply to state, then emit.
+   * State is updated first so handlers see the latest data.
    */
   private async emitAndApply(
-    eventData: Omit<GameEvent, "id" | "timestamp" | "stackDepth">
+    eventData: Omit<GameEvent, "id" | "timestamp" | "stackDepth" | "type"> & { type: EventTypeValue }
   ): Promise<void> {
-    const event = this.eventStack.push(eventData);
-    await this.eventBus.emit(event);
+    const event = this.eventStack.push(eventData as Omit<GameEvent, "id" | "timestamp" | "stackDepth"> & { type: string });
     this.state.applyEvent(event);
+    await this.eventBus.emit(event);
   }
 }
