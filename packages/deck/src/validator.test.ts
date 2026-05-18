@@ -598,9 +598,9 @@ describe("DeckValidator", () => {
       expectValid(result);
     });
 
-    it("should warn on non-array win conditions", () => {
+    it("should error on non-array win conditions", () => {
       const result = validator.validate(validDeck({ winConditions: "string" }));
-      expectWarning(result, "WIN_NOT_ARRAY");
+      expectError(result, "WIN_NOT_ARRAY");
     });
 
     it("should warn on unknown win type", () => {
@@ -629,9 +629,9 @@ describe("DeckValidator", () => {
       expectValid(result);
     });
 
-    it("should warn on non-array draw conditions", () => {
+    it("should error on non-array draw conditions", () => {
       const result = validator.validate(validDeck({ drawConditions: "string" }));
-      expectWarning(result, "DRAW_NOT_ARRAY");
+      expectError(result, "DRAW_NOT_ARRAY");
     });
 
     it("should warn on unknown draw type", () => {

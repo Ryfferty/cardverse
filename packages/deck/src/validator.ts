@@ -17,9 +17,11 @@ export class DeckValidator {
     this.validateManifest(json, errors, warnings);
     this.validateRules(json, errors, warnings);
     this.validateCards(json, errors, warnings);
+    this.validateEffects(json, errors, warnings);
     this.validateCharacters(json, errors, warnings);
     this.validateWinConditions(json, errors, warnings);
     this.validateDrawConditions(json, errors, warnings);
+    this.validateCrossReferences(json, errors, warnings);
 
     return { valid: errors.length === 0, errors, warnings };
   }
@@ -288,7 +290,14 @@ export class DeckValidator {
     errors: ValidationError[],
     warnings: ValidationWarning[]
   ): void {
-    if (!json.cards) return;
+    if (!json.cards) {
+      warnings.push({
+        code: "CARDS_MISSING",
+        message: "Deck has no cards defined",
+        path: "cards",
+      });
+      return;
+    }
     if (!Array.isArray(json.cards)) {
       errors.push({
         code: "CARDS_NOT_ARRAY",
@@ -362,6 +371,118 @@ export class DeckValidator {
           message: `Card "${id}" tags must be an array`,
           path: `${path}.tags`,
         });
+      }
+    }
+  }
+
+  private validateEffects(
+    json: Record<string, unknown>,
+    errors: ValidationError[],
+    warnings: ValidationWarning[]
+  ): void {
+    if (!json.cards || !Array.isArray(json.cards)) return;
+
+    const cardsArr = json.cards as Record<string, unknown>[];
+    const effectIds = new Set<string>();
+
+    for (let ci = 0; ci < cardsArr.length; ci++) {
+      const card = cardsArr[ci];
+      if (!card.id) continue;
+      const cardId = card.id as string;
+      const cardEffects = card.effects;
+      if (!Array.isArray(cardEffects)) continue;
+
+      for (let ei = 0; ei < cardEffects.length; ei++) {
+        const e = cardEffects[ei] as Record<string, unknown>;
+        const path = `cards[${ci}].effects[${ei}]`;
+
+        if (!e.id || typeof e.id !== "string" || !e.id.trim()) {
+          errors.push({
+            code: "EFFECT_MISSING_ID",
+            message: `Card "${cardId}" effect at index ${ei} has no id`,
+            path: `${path}.id`,
+          });
+          continue;
+        }
+
+        const eid = e.id as string;
+        if (effectIds.has(eid)) {
+          warnings.push({
+            code: "EFFECT_DUPLICATE_ID",
+            message: `Duplicate effect id "${eid}" across cards`,
+            path: `${path}.id`,
+          });
+        }
+        effectIds.add(eid);
+
+        if (!e.name || typeof e.name !== "string") {
+          warnings.push({
+            code: "EFFECT_MISSING_NAME",
+            message: `Effect "${eid}" has no name`,
+            path: `${path}.name`,
+          });
+        }
+
+        if (e.type !== undefined && typeof e.type !== "string") {
+          warnings.push({
+            code: "EFFECT_INVALID_TYPE",
+            message: `Effect "${eid}" type must be a string`,
+            path: `${path}.type`,
+          });
+        }
+
+        if (e.params !== undefined && (typeof e.params !== "object" || Array.isArray(e.params))) {
+          warnings.push({
+            code: "EFFECT_INVALID_PARAMS",
+            message: `Effect "${eid}" params must be an object`,
+            path: `${path}.params`,
+          });
+        }
+      }
+    }
+  }
+
+  private validateCrossReferences(
+    json: Record<string, unknown>,
+    errors: ValidationError[],
+    warnings: ValidationWarning[]
+  ): void {
+    const cards = json.cards;
+    if (!cards || !Array.isArray(cards)) return;
+
+    const cardsArr = cards as Record<string, unknown>[];
+    const definedEffectIds = new Set<string>();
+
+    // First pass: collect all effect ids
+    for (const card of cardsArr) {
+      const cardEffects = card.effects;
+      if (!Array.isArray(cardEffects)) continue;
+      for (const e of cardEffects) {
+        const eRec = e as Record<string, unknown>;
+        if (eRec.id && typeof eRec.id === "string") {
+          definedEffectIds.add(eRec.id);
+        }
+      }
+    }
+
+    // Second pass: check card effects reference existing effects
+    for (let ci = 0; ci < cardsArr.length; ci++) {
+      const card = cardsArr[ci];
+      if (!card.id) continue;
+      const cardId = card.id as string;
+      const cardEffects = card.effects;
+      if (!Array.isArray(cardEffects)) continue;
+
+      for (let ei = 0; ei < cardEffects.length; ei++) {
+        const e = cardEffects[ei] as Record<string, unknown>;
+        // Only check if this effect seems to reference another effect definition
+        if (e.ref && typeof e.ref === "string" && !definedEffectIds.has(e.ref)) {
+          warnings.push({
+            code: "CROSS_REF_UNKNOWN_EFFECT",
+            message: `Card "${cardId}" effect references unknown effect "${e.ref}"`,
+            path: `cards[${ci}].effects[${ei}].ref`,
+          });
+        }
       }
     }
   }
@@ -523,7 +644,7 @@ export class DeckValidator {
   ): void {
     if (!json.winConditions) return;
     if (!Array.isArray(json.winConditions)) {
-      warnings.push({
+      errors.push({
         code: "WIN_NOT_ARRAY",
         message: "winConditions must be an array",
         path: "winConditions",
@@ -552,7 +673,7 @@ export class DeckValidator {
   ): void {
     if (!json.drawConditions) return;
     if (!Array.isArray(json.drawConditions)) {
-      warnings.push({
+      errors.push({
         code: "DRAW_NOT_ARRAY",
         message: "drawConditions must be an array",
         path: "drawConditions",
