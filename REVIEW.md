@@ -232,5 +232,70 @@
 
 ---
 
+---
+
+## TASK-007 修复验证
+
+> 验证提交范围内的 6 项审查意见修复情况。
+
+**测试**: ✅ 109/109 通过（deck: validator 72 + loader 37）
+**类型检查**: ✅ tsc --noEmit 零错误
+
+| 审查 | 问题 | 验证 | 说明 |
+|------|------|------|------|
+| 036 | instanceCounter 全局污染 | ✅ 正确修复 | 改为 `private instanceCounter = 0` 实例级 |
+| 037 | DeckError 未导出 | ✅ 正确修复 | index.ts 已导出 DeckError |
+| 038 | validator `as any[]` | ✅ 正确修复 | 改为 `as Record<string, unknown>[]` |
+| 039 | NaN 未防御 | ✅ 正确修复 | 新增 `safeInt()` 方法，isNaN 返回 0 |
+| 040 | 重复 effect ID 静默覆盖 | ✅ 正确修复 | 添加 `console.warn` |
+| 041 | CardDefinitionWithCount 死代码 | ✅ 正确修复 | 已删除 |
+
+**结论**: 6 项全部正确修复。
+
+---
+
+## TASK-008 审查（卡组验证器）
+
+> 362 tests pass (core: 253 + deck: 109)，pnpm build 通过，tsc --noEmit 通过。
+> 验收标准全部满足：合法卡组通过 ✅ / 非法卡组给具体位置 ✅ / 警告不影响结果 ✅
+
+### REVIEW-042: 缺少 effects 验证逻辑
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-008
+- **文件**: `validator.ts`
+- **日期**: 2026-05-18
+- **问题**: 没有 `validateEffects()` 方法。卡牌内嵌的 effects（`card.effects[]`）的 id/type 等字段完全未校验。
+- **建议**: 在 `validateCards()` 中验证 `card.effects` 数组每个 effect 的 id/type 必填性。
+- **优先级**: 🟡 中
+
+### REVIEW-043: 缺少 cross-reference 验证
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-008
+- **文件**: `validator.ts`
+- **日期**: 2026-05-18
+- **问题**: 卡牌 effect 引用的 effect ID 是否存在、卡牌引用的 resource ID 是否存在于 rules.resources 中，均未验证。
+- **建议**: 至少在 validateCards 中检查 effect ID 引用的有效性。
+- **优先级**: 🟡 中
+
+### REVIEW-044: 缺少 cards 时静默通过
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-008
+- **文件**: `validator.ts:291`
+- **日期**: 2026-05-18
+- **问题**: `validateCards()` 在 `json.cards` 不存在时直接 return，无 error/warning。没有卡牌的"卡组"能通过验证。
+- **建议**: 缺少 cards 时至少产生一个 warning。
+- **优先级**: 🟡 中
+
+### REVIEW-045: winConditions/drawConditions 非数组仅报 warning
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-008
+- **文件**: `validator.ts`
+- **日期**: 2026-05-18
+- **问题**: `winConditions`/`drawConditions` 非数组报 warning，但 `cards`/`characters` 非数组报 error。语义不一致——非数组类型应视为数据结构错误。
+- **建议**: `WIN_NOT_ARRAY` 和 `DRAW_NOT_ARRAY` 从 warning 升级为 error。
+- **优先级**: 🟡 中
+
+---
+
 *审查人: Hermes Agent | 日期: 2026-05-18*
     73|    73|
