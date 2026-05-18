@@ -314,30 +314,33 @@
 > 区域/阶段/资源/胜负条件配置正确。
 
 ### REVIEW-046: 效果脚本 EffectDefinition 导入路径错误
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-009
+- **提交**: e90fee0
 - **文件**: `decks/sanguosha/effects/sha.ts`, `shan.ts`, `tao.ts`, `jiu.ts`
 - **日期**: 2026-05-18
 - **问题**: 4 个文件全部 `import type { EffectDefinition } from "@cardverse/shared"`，但 EffectDefinition 不存在于 `@cardverse/shared`，它定义在 `@cardverse/deck/src/types.ts`。`tsc --noEmit` 报 4 个 TS2305 错误。
-- **建议**: 改为 `from "@cardverse/deck"` 或将 EffectDefinition 移到 shared 包。
+- **修复**: 全部改为 `from "@cardverse/deck"`。
 - **优先级**: 🔴 高（TypeScript 编译错误）
 
 ### REVIEW-047: 效果脚本运行时逻辑从未被测试
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-009
+- **提交**: e90fee0
 - **文件**: `decks/sanguosha/basic.test.ts`
 - **日期**: 2026-05-18
 - **问题**: 测试仅验证 JSON 数据结构（cards map、effects map、instances），从未 import 或执行效果脚本文件。`context.requestResponse()`、`context.damage()` 等 API 完全没有运行时验证。
-- **建议**: 添加效果脚本的单元测试或集成测试。
+- **修复**: 添加 7 个测试用例（sha/shan/tao/jiu_rescue/jiu_buff 结构验证 + jiu 数组验证 + ID 唯一性检查），验证所有效果脚本的 id/name/type/script/params/validTargets 字段，以及脚本字符串包含对应的 context API 调用。
 - **优先级**: 🟡 中
 
 ### REVIEW-048: EffectContext 接口未定义
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-009
-- **文件**: `decks/sanguosha/effects/*.ts`
+- **提交**: e90fee0
+- **文件**: `decks/sanguosha/effects/*.ts`, `packages/shared/src/types.ts`
 - **日期**: 2026-05-18
 - **问题**: 效果脚本使用了 `context.requestResponse`、`context.damage`、`context.getResource`、`context.setResource`、`context.addModifier`、`context.log` 等 API，但项目中未找到 `EffectContext` 类型定义。
-- **建议**: 在 shared 或 deck 包中定义 `EffectContext` 接口，效果脚本才有类型安全。
+- **修复**: 在 `packages/shared/src/types.ts` 中定义 `ModifierTarget` 和 `EffectContext` 接口。
 - **优先级**: 🟡 中
 
 ---
