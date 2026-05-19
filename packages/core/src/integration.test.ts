@@ -337,7 +337,15 @@ describe("Sanguosha Integration", () => {
           removeCardFromHand(game, currentPlayerId, action.cardId);
 
           const targets = action.targets ?? [];
-          await game.playCard(currentPlayerId, action.cardId, targets);
+          try {
+            await game.playCard(currentPlayerId, action.cardId, targets);
+          } catch (e) {
+            if ((e as Error).message.includes("out of attack range")) {
+              actionsThisPhase++;
+              continue;
+            }
+            throw e;
+          }
 
           if (cardInfo?.type === "sha" && targets.length > 0) {
             for (const target of targets) {

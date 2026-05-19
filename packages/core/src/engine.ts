@@ -23,6 +23,7 @@ import { PhaseManager } from "./phases.js";
 import { ResourceManager } from "./resources.js";
 import { EffectExecutor, type ExecutorDependencies, type EffectExecutionResult } from "./effectExecutor.js";
 import type { EffectDefinition } from "@cardverse/deck";
+import { RangeManager, type RangeModifiers } from "./range.js";
 
 let gameIdCounter = 0;
 
@@ -41,6 +42,8 @@ export class Game {
   private reconnectTimeout: number;
   private effects: Map<string, EffectDefinition> = new Map();
   private cardDefinitions: Map<string, CardDefinition> = new Map();
+  private playerSeats: Map<PlayerId, number> = new Map();
+  private seatCounter = 0;
 
   private constructor(config: GameConfig, initialState: GameState) {
     this.config = config;
@@ -78,6 +81,8 @@ export class Game {
     if (currentState.status !== "waiting") {
       throw new Error("Cannot add players after game has started");
     }
+
+    this.playerSeats.set(playerId, this.seatCounter++);
 
     const player: PlayerState = {
       id: playerId,
@@ -245,11 +250,23 @@ export class Game {
     const player = state.players.get(playerId);
     if (!player) throw new Error(`Player "${playerId}" not found`);
 
+    const cardType = this.resolveCardType(cardInstanceId);
+
+    if (cardType === "sha" && targets && targets.length > 0) {
+      for (const target of targets) {
+        if (!this.validateRange(playerId, target)) {
+          throw new Error(
+            `Target "${target}" is out of attack range of "${playerId}"`
+          );
+        }
+      }
+    }
+
     const event: GameEvent = {
       id: `card_played_${Date.now()}_${cardInstanceId}`,
       type: EventType.CARD_PLAYED,
       source: playerId,
-      data: { cardId: cardInstanceId, playerId, targets, cardType: this.resolveCardType(cardInstanceId) },
+      data: { cardId: cardInstanceId, playerId, targets, cardType },
       timestamp: Date.now(),
       stackDepth: 0,
     };
@@ -316,6 +333,48 @@ export class Game {
 
   getCardType(cardInstanceId: CardInstanceId): string {
     return this.resolveCardType(cardInstanceId);
+  }
+
+  getPlayerSeatIndex(playerId: PlayerId): number {
+    return this.playerSeats.get(playerId) ?? -1;
+  }
+
+  getEquipmentCards(playerId: PlayerId): string[] {
+    const state = this.getState();
+    const player = state.players.get(playerId);
+    if (!player) return [];
+
+    const equipZone = player.zones.get("equipment");
+    if (!equipZone) return [];
+
+    return [...equipZone.cards];
+  }
+
+  getPlayerRangeModifiers(playerId: PlayerId): RangeModifiers {
+    const equipCardIds = this.getEquipmentCards(playerId);
+    const equipDefs = RangeManager.resolveEquipmentCards(equipCardIds, this.cardDefinitions);
+    return RangeManager.getEquipmentModifiers(equipDefs);
+  }
+
+  getTotalPlayerCount(): number {
+    return this.playerSeats.size;
+  }
+
+  validateRange(attackerId: PlayerId, targetId: PlayerId): boolean {
+    const attackerSeat = this.getPlayerSeatIndex(attackerId);
+    const targetSeat = this.getPlayerSeatIndex(targetId);
+    if (attackerSeat < 0 || targetSeat < 0) return false;
+
+    const totalPlayers = this.getTotalPlayerCount();
+    const baseDistance = RangeManager.calculateDistance(attackerSeat, targetSeat, totalPlayers);
+    const modifiers = this.getPlayerRangeModifiers(attackerId);
+
+    return RangeManager.isInRange(
+      baseDistance,
+      modifiers.weaponRange,
+      modifiers.mountOffense,
+      modifiers.mountDefense
+    );
   }
 
   /**

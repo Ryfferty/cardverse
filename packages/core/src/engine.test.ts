@@ -478,6 +478,126 @@ describe("Game", () => {
     });
   });
 
+  describe("range system", () => {
+    it("should track seat indices", () => {
+      const game = setupTwoPlayerGame();
+
+      expect(game.getPlayerSeatIndex("p1")).toBe(0);
+      expect(game.getPlayerSeatIndex("p2")).toBe(1);
+      expect(game.getPlayerSeatIndex("nonexistent")).toBe(-1);
+    });
+
+    it("should return empty equipment for players with no equipment", () => {
+      const game = setupTwoPlayerGame();
+
+      expect(game.getEquipmentCards("p1")).toEqual([]);
+    });
+
+    it("should return default range modifiers with no equipment", () => {
+      const game = setupTwoPlayerGame();
+
+      const mod = game.getPlayerRangeModifiers("p1");
+      expect(mod.weaponRange).toBe(1);
+      expect(mod.mountOffense).toBe(0);
+      expect(mod.mountDefense).toBe(0);
+    });
+
+    it("should validate range for adjacent players in 2-player game", () => {
+      const game = setupTwoPlayerGame();
+
+      expect(game.validateRange("p1", "p2")).toBe(true);
+      expect(game.validateRange("p2", "p1")).toBe(true);
+    });
+
+    it("should validate range for adjacent players in 4-player game", () => {
+      const game = Game.create(createConfig({ playerCount: 4 }));
+      game.addPlayer("p1", "Player1");
+      game.addPlayer("p2", "Player2");
+      game.addPlayer("p3", "Player3");
+      game.addPlayer("p4", "Player4");
+
+      expect(game.validateRange("p1", "p2")).toBe(true);
+      expect(game.validateRange("p1", "p4")).toBe(true);
+      expect(game.validateRange("p2", "p3")).toBe(true);
+    });
+
+    it("should fail range validation for opposite players in 4-player game", () => {
+      const game = Game.create(createConfig({ playerCount: 4 }));
+      game.addPlayer("p1", "Player1");
+      game.addPlayer("p2", "Player2");
+      game.addPlayer("p3", "Player3");
+      game.addPlayer("p4", "Player4");
+
+      expect(game.validateRange("p1", "p3")).toBe(false);
+      expect(game.validateRange("p2", "p4")).toBe(false);
+    });
+
+    it("should not apply range validation for non-sha cards", async () => {
+      const game = setupTwoPlayerGame();
+      game.initPhases(testPhases);
+      game.initZones([deckZoneDef, discardZoneDef]);
+      game.initPlayerZones("p1", [handZoneDef]);
+
+      const cardDefs = new Map<string, import("@cardverse/shared").CardDefinition>();
+      cardDefs.set("tao", { id: "tao", name: "桃", category: "basic" });
+      game.setCardDefinitions(cardDefs);
+
+      await game.start();
+
+      await expect(
+        game.playCard("p1", "inst_tao_1", ["p1"])
+      ).resolves.toBeDefined();
+    });
+
+    it("should throw when sha target is out of range", async () => {
+      const game = Game.create(createConfig({ playerCount: 4 }));
+      game.addPlayer("p1", "Player1");
+      game.addPlayer("p2", "Player2");
+      game.addPlayer("p3", "Player3");
+      game.addPlayer("p4", "Player4");
+
+      game.initPhases(testPhases);
+      game.initZones([deckZoneDef, discardZoneDef]);
+      for (const pid of ["p1", "p2", "p3", "p4"]) {
+        game.initPlayerZones(pid, [handZoneDef]);
+      }
+
+      const cardDefs = new Map<string, import("@cardverse/shared").CardDefinition>();
+      cardDefs.set("sha", { id: "sha", name: "杀", category: "basic" });
+      game.setCardDefinitions(cardDefs);
+
+      await game.start();
+
+      await expect(
+        game.playCard("p1", "inst_sha_1", ["p3"])
+      ).rejects.toThrow("out of attack range");
+    });
+
+    it("should allow sha against adjacent target", async () => {
+      const game = Game.create(createConfig({ playerCount: 4 }));
+      game.addPlayer("p1", "Player1");
+      game.addPlayer("p2", "Player2");
+      game.addPlayer("p3", "Player3");
+      game.addPlayer("p4", "Player4");
+
+      game.initPhases(testPhases);
+      game.initZones([deckZoneDef, discardZoneDef]);
+      for (const pid of ["p1", "p2", "p3", "p4"]) {
+        game.initPlayerZones(pid, [handZoneDef]);
+      }
+
+      const cardDefs = new Map<string, import("@cardverse/shared").CardDefinition>();
+      cardDefs.set("sha", { id: "sha", name: "杀", category: "basic" });
+      game.setCardDefinitions(cardDefs);
+
+      await game.start();
+
+      await expect(
+        game.playCard("p1", "inst_sha_1", ["p2"])
+      ).resolves.toBeDefined();
+    });
+  });
+
   describe("integration", () => {
     it("should simulate a 2-turn game", async () => {
       const game = setupTwoPlayerGame();
