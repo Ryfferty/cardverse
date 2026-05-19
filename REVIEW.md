@@ -786,19 +786,21 @@
 - **优先级**: 🔴 高
 
 ### REVIEW-079: EventStack.push() 类型签名不精确（events.md）
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-018
 - **文件**: `docs/api/events.md`
 - **日期**: 2026-05-19
+- **修复**: 2026-05-19，commit 0336973
 - **问题**: 文档签名遗漏了 `| "type"` 的 Omit 和 `& { type: string }` 交叉类型。
 - **建议**: 与源码签名对齐。
 - **优先级**: 🟡 中
 
 ### REVIEW-080: ZoneManager.getCards() 方法未文档化（zones.md）
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-018
 - **文件**: `docs/api/zones.md`
 - **日期**: 2026-05-19
+- **修复**: 2026-05-19，commit 0336973
 - **问题**: 源码存在公开方法 `getCards(key): CardInstanceId[]`，文档完全未列出。
 - **建议**: 补充方法说明。
 - **优先级**: 🟡 中
@@ -813,6 +815,84 @@
 - **建议**: 补充说明"以下事件被识别但不直接修改状态"。
 - **修复内容**: 表格扩展至 18 种事件类型，补充 `phase:end`, `damage:dealt`, `damage:taken`, `heal:received`, `response:requested`, `response:given`, `response:timeout`。
 - **优先级**: 🟡 中
+
+---
+
+## REVIEW-066~075 修复验证 + TASK-019 审查
+
+**构建**: ✅ 通过 | **测试**: ✅ 562/562 通过
+
+### REVIEW-066~075 逐项验证
+
+> Trae SOLO 标记 10 项全部 ✅ 已处理。经代码验证，**6 项正确修复，4 项仅部分修复**。
+
+| 审查 | 标记 | 实际 | 说明 |
+|------|------|------|------|
+| 066 phaseIndex | ✅ | ✅ | `game.getState().currentTurn?.phaseIndex ?? 0` — 从引擎读取 |
+| 067 玩家索引 | ✅ | ✅ | `game.getState().currentTurn?.playerId` — 从引擎读取 |
+| 068 async 竞态 | ✅ | ⚠️ | playCard 已移除同步 updateGameState ✅，但 **endTurn .then() 仍有 `turnNumber++; updateGameState()`**，与 eventBus `"*"` 重复触发 |
+| 069 XSS | ✅ | ✅ | 改用 `document.createElement` + `textContent` |
+| 070 类型孤岛 | ✅ | ⚠️ | `import { CardDefinition }` 已加但 **未实际使用**，`CardEditorData` 未扩展 `CardDefinition`，类型仍孤立 |
+| 071 架构分层 | ✅ | ✅ | 拆分为 main.ts(9行) + state.ts(101行) + renderer.ts(406行) |
+| 072 ID 校验 | ✅ | ⚠️ | `validateCardId`/`validateCharId` 已实现，但 **renderer.ts 未调用任何校验函数**，校验逻辑是死代码 |
+| 073 shared 依赖 | ✅ | ✅ | `@cardverse/shared: workspace:*` 已添加 |
+| 074 Record+delete | ✅ | ✅ | 改为条件展开 |
+| 075 manifest.id | ✅ | ⚠️ | `buildDeckExport` 签名支持 `deckId?`/`deckName?`，但 **UI 无卡组名称输入框**，调用时未传参 |
+
+### REVIEW-068 补充：endTurn 重复更新
+- **状态**: ❌ 未完全处理
+- **文件**: `apps/web/src/main.ts:169-174`
+- **问题**: `endTurn().then(() => { turnNumber++; updateGameState(); })` 与 `eventBus.on("*")` 双重触发 UI 更新。`turnNumber` 也应从引擎读取。
+- **建议**: 移除 `.then()` 中的 `updateGameState()`，`turnNumber` 改为 `game.getState().currentTurn?.turnNumber ?? 1`。
+- **优先级**: 🟡 中（功能正常但重复渲染）
+
+### REVIEW-070 补充：import 未使用
+- **状态**: ❌ 未完全处理
+- **文件**: `apps/editor/src/editor.ts:1`
+- **问题**: `import type { CardDefinition, EffectContext } from "@cardverse/shared"` 但两个类型均未在文件中使用。`CardEditorData` 仍独立定义。
+- **建议**: 要么真正基于 `CardDefinition` 扩展编辑器类型，要么移除未使用的 import。
+- **优先级**: 🟡 中
+
+### REVIEW-072 补充：校验函数是死代码
+- **状态**: ❌ 未完全处理
+- **文件**: `apps/editor/src/renderer.ts`
+- **问题**: `validateCardId`/`validateCharId` 已在 editor.ts 和 state.ts 中实现，但 renderer.ts 的保存流程未调用。
+- **建议**: 在保存按钮回调中调用 `validateEditingCard()`/`validateEditingChar()`，校验失败时显示错误提示。
+- **优先级**: 🟡 中
+
+### REVIEW-075 补充：UI 无卡组名称输入
+- **状态**: ❌ 未完全处理
+- **文件**: `apps/editor/src/renderer.ts:213`
+- **问题**: `buildDeckExport(state.cards, state.characters)` 未传 deckId/deckName。
+- **建议**: 在导出区域添加卡组名称输入框。
+- **优先级**: 🟢 低
+
+---
+
+## REVIEW-079, 080 修正标记
+
+> Trae SOLO 在 commit 0336973 中修复了代码但**漏标了 REVIEW-079 和 REVIEW-080 的状态**。
+
+| 审查 | REVIEW.md 标记 | 代码实际 | 说明 |
+|------|---------------|----------|------|
+| 079 | ❌ 未处理 | ✅ 已修复 | events.md 签名已更正为 `Omit<..., "type"> & { type: string }` |
+| 080 | ❌ 未处理 | ✅ 已修复 | zones.md 已添加 `getCards()` 方法文档 |
+
+---
+
+## TASK-019 审查（卡组开发指南）
+
+**文档**: ✅ `docs/deck-authoring/index.md`（441 行，24 个章节）
+
+**覆盖**: Manifest 规范 / 游戏规则定义 / 卡牌定义 / 效果脚本指南 / 武将定义
+
+**验收**: 文档完整 ✅ / 包含示例 ✅
+
+**质量**: 结构清晰，有完整 JSON 示例和 EffectDefinition 代码示例，与实际源码一致。
+
+**1 个低优先级瑕疵**: 第 39 行 `characters/` 标记为 ❌（非必需），但 TASK-012 中三国杀包含武将。建议说明"含武将的卡组需要此目录"。
+
+**结论**: ✅ 通过。
 
 ---
 
