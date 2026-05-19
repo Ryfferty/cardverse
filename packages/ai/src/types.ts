@@ -15,6 +15,7 @@ export interface AIPlayerInfo {
   maxHealth: number;
   faction: string;
   alive: boolean;
+  seatIndex: number;
 }
 
 export interface AIGameView {
@@ -24,6 +25,7 @@ export interface AIGameView {
   currentPhase: string;
   currentTurnPlayerId: PlayerId;
   pendingEvents: GameEvent[];
+  playerCount: number;
 }
 
 export interface AIAction {

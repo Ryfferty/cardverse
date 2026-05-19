@@ -1,4 +1,4 @@
-import type { PlayerId, GameEvent, EventResponse } from "@cardverse/shared";
+import type { PlayerId, GameEvent, EventResponse, CardInstanceId } from "@cardverse/shared";
 import type { AIAdapter, AIGameView, AIAction, AIPlayerInfo, HandCard } from "./types.js";
 
 const FALLBACK_ACTIONS: AIAction[] = [
@@ -35,7 +35,23 @@ export class HeuristicAI implements AIAdapter {
       maxHealth: 0,
       faction: "",
       alive: false,
+      seatIndex: 0,
     };
+  }
+
+  private getDistance(from: PlayerId, to: PlayerId): number {
+    if (!this.gameView) return Infinity;
+    const alive = this.gameView.players.filter((p) => p.alive);
+    const fromPlayer = alive.find((p) => p.playerId === from);
+    const toPlayer = alive.find((p) => p.playerId === to);
+    if (!fromPlayer || !toPlayer) return Infinity;
+
+    const total = this.gameView.playerCount;
+    if (total <= 2) return 1;
+
+    const clockwise = (toPlayer.seatIndex - fromPlayer.seatIndex + total) % total;
+    const counterclockwise = (fromPlayer.seatIndex - toPlayer.seatIndex + total) % total;
+    return Math.min(clockwise, counterclockwise);
   }
 
   private getEnemies(): AIPlayerInfo[] {
@@ -44,6 +60,13 @@ export class HeuristicAI implements AIAdapter {
     return this.gameView.players
       .filter((p) => p.alive && p.playerId !== self.playerId && p.faction !== self.faction)
       .sort((a, b) => a.health - b.health);
+  }
+
+  private getEnemiesInRange(attackRange: number): AIPlayerInfo[] {
+    const self = this.getSelf();
+    return this.getEnemies().filter(
+      (e) => this.getDistance(self.playerId, e.playerId) <= attackRange
+    );
   }
 
   private getAllies(): AIPlayerInfo[] {
@@ -60,57 +83,119 @@ export class HeuristicAI implements AIAdapter {
     return this.findCardsByType(type).length > 0;
   }
 
+  private getAttackRange(): number {
+    const equipCards = this.findCardsByType("equipment");
+    let range = 1;
+
+    for (const card of equipCards) {
+      const name = card.name;
+      if (name === "麒麟弓") range = Math.max(range, 5);
+      else if (name === "方天画戟") range = Math.max(range, 4);
+      else if (name === "青龙偃月刀") range = Math.max(range, 3);
+      else if (name === "丈八蛇矛" || name === "贯石斧") range = Math.max(range, 3);
+      else if (name === "雌雄双股剑" || name === "青釭剑") range = Math.max(range, 2);
+      else if (name === "诸葛连弩") range = Math.max(range, 2);
+    }
+
+    return range;
+  }
+
   async decideAction(gameView: AIGameView): Promise<AIAction> {
     this.gameView = gameView;
     const self = this.getSelf();
 
     try {
-      if (gameView.currentPhase !== "play") {
-        return { type: "pass" };
+      switch (gameView.currentPhase) {
+        case "draw":
+          return this.decideDraw();
+        case "judge":
+          return this.decideJudge();
+        case "play":
+          return this.decidePlay(self);
+        case "discard":
+          return this.decideDiscard(self);
+        default:
+          return { type: "pass" };
       }
-
-      const shaCards = this.findCardsByType("sha");
-      const taoCards = this.findCardsByType("tao");
-      const equipmentCards = this.handCards.filter((c) => c.type === "equipment");
-
-      const enemies = this.getEnemies();
-      if (shaCards.length > 0 && enemies.length > 0) {
-        const target = enemies[0];
-        return {
-          type: "playCard",
-          cardId: shaCards[0].instanceId,
-          targets: [target.playerId],
-        };
-      }
-
-      if (taoCards.length > 0 && self.health < self.maxHealth) {
-        return {
-          type: "playCard",
-          cardId: taoCards[0].instanceId,
-          targets: [self.playerId],
-        };
-      }
-
-      if (equipmentCards.length > 0) {
-        return {
-          type: "playCard",
-          cardId: equipmentCards[0].instanceId,
-        };
-      }
-
-      const trickCards = this.handCards.filter((c) => c.type === "trick");
-      if (trickCards.length > 0 && enemies.length > 0) {
-        return {
-          type: "playCard",
-          cardId: trickCards[0].instanceId,
-          targets: [enemies[0].playerId],
-        };
-      }
-
-      return { type: "endTurn" };
     } catch (e) {
       return pickRandom(FALLBACK_ACTIONS) ?? { type: "endTurn" };
     }
+  }
+
+  private decideDraw(): AIAction {
+    return { type: "pass" };
+  }
+
+  private decideJudge(): AIAction {
+    return { type: "pass" };
+  }
+
+  private decidePlay(self: AIPlayerInfo): AIAction {
+    const attackRange = this.getAttackRange();
+    const shaCards = this.findCardsByType("sha");
+    const taoCards = this.findCardsByType("tao");
+    const equipmentCards = this.handCards.filter((c) => c.type === "equipment");
+
+    const enemiesInRange = this.getEnemiesInRange(attackRange);
+    if (shaCards.length > 0 && enemiesInRange.length > 0) {
+      const target = enemiesInRange[0];
+      return {
+        type: "playCard",
+        cardId: shaCards[0].instanceId,
+        targets: [target.playerId],
+      };
+    }
+
+    if (taoCards.length > 0 && self.health < self.maxHealth) {
+      return {
+        type: "playCard",
+        cardId: taoCards[0].instanceId,
+        targets: [self.playerId],
+      };
+    }
+
+    if (equipmentCards.length > 0) {
+      return {
+        type: "playCard",
+        cardId: equipmentCards[0].instanceId,
+      };
+    }
+
+    const allEnemies = this.getEnemies();
+    const trickCards = this.handCards.filter((c) => c.type === "trick");
+    if (trickCards.length > 0 && allEnemies.length > 0) {
+      return {
+        type: "playCard",
+        cardId: trickCards[0].instanceId,
+        targets: [allEnemies[0].playerId],
+      };
+    }
+
+    return { type: "endTurn" };
+  }
+
+  private decideDiscard(self: AIPlayerInfo): AIAction {
+    const handLimit = self.health;
+    const excess = this.handCards.length - handLimit;
+
+    if (excess <= 0) {
+      return { type: "endTurn" };
+    }
+
+    const discardOrder = ["jiu", "sha", "shan", "trick", "equipment", "tao"];
+    const sorted = [...this.handCards].sort((a, b) => {
+      const ai = discardOrder.indexOf(a.type);
+      const bi = discardOrder.indexOf(b.type);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
+
+    const toDiscard = sorted.slice(0, excess).map((c) => c.instanceId);
+
+    return {
+      type: "respond",
+      cardId: toDiscard[0],
+      data: { discardAll: toDiscard },
+    };
   }
 
   async decideResponse(gameView: AIGameView, event: GameEvent): Promise<EventResponse | null> {

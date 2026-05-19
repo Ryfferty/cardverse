@@ -7,6 +7,7 @@ import {
   type ZoneDefinition,
   type ResourceDefinition,
   type PhaseDefinition,
+  type CardDefinition,
   type EventResponse,
   type CardInstanceId,
   type EventTypeValue,
@@ -39,6 +40,7 @@ export class Game {
   private responseTimeout: number;
   private reconnectTimeout: number;
   private effects: Map<string, EffectDefinition> = new Map();
+  private cardDefinitions: Map<string, CardDefinition> = new Map();
 
   private constructor(config: GameConfig, initialState: GameState) {
     this.config = config;
@@ -247,7 +249,7 @@ export class Game {
       id: `card_played_${Date.now()}_${cardInstanceId}`,
       type: EventType.CARD_PLAYED,
       source: playerId,
-      data: { cardId: cardInstanceId, playerId, targets },
+      data: { cardId: cardInstanceId, playerId, targets, cardType: this.resolveCardType(cardInstanceId) },
       timestamp: Date.now(),
       stackDepth: 0,
     };
@@ -312,6 +314,10 @@ export class Game {
     return this.state.getEventLog();
   }
 
+  getCardType(cardInstanceId: CardInstanceId): string {
+    return this.resolveCardType(cardInstanceId);
+  }
+
   /**
    * Register an event handler.
    */
@@ -331,6 +337,10 @@ export class Game {
    */
   setEffects(effects: Map<string, EffectDefinition>): void {
     this.effects = effects;
+  }
+
+  setCardDefinitions(definitions: Map<string, CardDefinition>): void {
+    this.cardDefinitions = definitions;
   }
 
   /**
@@ -358,6 +368,21 @@ export class Game {
       result.push(effect);
     }
     return result;
+  }
+
+  private resolveCardType(cardInstanceId: CardInstanceId): string {
+    const defId = this.extractDefinitionId(cardInstanceId);
+    const cardDef = this.cardDefinitions.get(defId);
+    if (!cardDef) return "unknown";
+    if (cardDef.category === "basic") return cardDef.id;
+    if (cardDef.category === "equipment") return "equipment";
+    return cardDef.id;
+  }
+
+  private extractDefinitionId(cardInstanceId: CardInstanceId): string {
+    const parts = cardInstanceId.split("_");
+    if (parts.length >= 2) return parts[1];
+    return cardInstanceId;
   }
 
   /**

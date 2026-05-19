@@ -4,6 +4,7 @@ import type { AIGameView, AIPlayerInfo, HandCard } from "./types.js";
 
 function makePlayer(
   id: string,
+  seatIndex: number,
   overrides: Partial<AIPlayerInfo> = {}
 ): AIPlayerInfo {
   return {
@@ -14,6 +15,7 @@ function makePlayer(
     maxHealth: overrides.maxHealth ?? 4,
     faction: overrides.faction ?? "shu",
     alive: overrides.alive ?? true,
+    seatIndex: overrides.seatIndex ?? seatIndex,
   };
 }
 
@@ -21,16 +23,21 @@ function makeGameView(
   selfId: string,
   overrides: Partial<AIGameView> = {}
 ): AIGameView {
+  const defaultPlayers = [
+    makePlayer(selfId, 0, { health: 4, maxHealth: 4, faction: "shu" }),
+    makePlayer("p2", 1, { health: 4, maxHealth: 4, faction: "wei" }),
+    makePlayer("p3", 2, { health: 4, maxHealth: 4, faction: "wu" }),
+    makePlayer("p4", 3, { health: 4, maxHealth: 4, faction: "qun" }),
+  ];
+
   return {
-    players: overrides.players ?? [
-      makePlayer(selfId, { health: 4, maxHealth: 4, faction: "shu" }),
-      makePlayer("p2", { health: 4, maxHealth: 4, faction: "wei" }),
-    ],
+    players: overrides.players ?? defaultPlayers,
     selfId,
     turnNumber: overrides.turnNumber ?? 1,
     currentPhase: overrides.currentPhase ?? "play",
     currentTurnPlayerId: overrides.currentTurnPlayerId ?? selfId,
     pendingEvents: overrides.pendingEvents ?? [],
+    playerCount: overrides.playerCount ?? defaultPlayers.length,
   };
 }
 
@@ -69,7 +76,7 @@ describe("HeuristicAI", () => {
   });
 
   describe("decideAction — play phase", () => {
-    it("should play sha against enemy when available", async () => {
+    it("should play sha against enemy in range when available", async () => {
       const view = makeGameView("p1");
       ai.setHandCards([makeHandCard("inst_sha_1", "sha")]);
 
@@ -80,12 +87,32 @@ describe("HeuristicAI", () => {
       expect(action.targets).toEqual(["p2"]);
     });
 
+    it("should not play sha when enemy is out of range", async () => {
+      const view = makeGameView("p1");
+      const players = [
+        makePlayer("p1", 0, { health: 4, faction: "shu" }),
+        makePlayer("p2", 1, { health: 4, faction: "wei" }),
+        makePlayer("p3", 2, { health: 4, faction: "wu" }),
+        makePlayer("p4", 3, { health: 4, faction: "qun" }),
+      ];
+      const viewFar = { ...view, players };
+      ai.setHandCards([makeHandCard("inst_sha_1", "sha")]);
+
+      const action = await ai.decideAction(viewFar);
+
+      // p2 is adjacent (distance 1), p3/p4 are distance 2
+      // Default range is 1, so only p2 is in range
+      expect(action.type).toBe("playCard");
+      expect(action.targets).toEqual(["p2"]);
+    });
+
     it("should play tao when health is below max", async () => {
       const view = makeGameView("p1", {
         players: [
-          makePlayer("p1", { health: 2, maxHealth: 4, faction: "shu" }),
-          makePlayer("p2", { health: 4, maxHealth: 4, faction: "wei" }),
+          makePlayer("p1", 0, { health: 2, maxHealth: 4, faction: "shu" }),
+          makePlayer("p2", 1, { health: 4, maxHealth: 4, faction: "wei" }),
         ],
+        playerCount: 2,
       });
       ai.setHandCards([makeHandCard("inst_tao_1", "tao")]);
 
@@ -109,8 +136,9 @@ describe("HeuristicAI", () => {
     it("should end turn when no viable actions", async () => {
       const view = makeGameView("p1", {
         players: [
-          makePlayer("p1", { health: 4, maxHealth: 4, faction: "shu" }),
+          makePlayer("p1", 0, { health: 4, maxHealth: 4, faction: "shu" }),
         ],
+        playerCount: 1,
       });
       ai.setHandCards([]);
 
@@ -132,15 +160,6 @@ describe("HeuristicAI", () => {
       expect(action.cardId).toBe("inst_sha_1");
     });
 
-    it("should pass when not in play phase", async () => {
-      const view = makeGameView("p1", { currentPhase: "draw" });
-      ai.setHandCards([makeHandCard("inst_sha_1", "sha")]);
-
-      const action = await ai.decideAction(view);
-
-      expect(action.type).toBe("pass");
-    });
-
     it("should play trick cards when no sha available", async () => {
       const view = makeGameView("p1");
       ai.setHandCards([makeHandCard("inst_trick_1", "trick", "trick", "决斗")]);
@@ -155,9 +174,10 @@ describe("HeuristicAI", () => {
     it("should not heal when health is already full", async () => {
       const view = makeGameView("p1", {
         players: [
-          makePlayer("p1", { health: 4, maxHealth: 4, faction: "shu" }),
-          makePlayer("p2", { health: 4, maxHealth: 4, faction: "wei" }),
+          makePlayer("p1", 0, { health: 4, maxHealth: 4, faction: "shu" }),
+          makePlayer("p2", 1, { health: 4, maxHealth: 4, faction: "wei" }),
         ],
+        playerCount: 2,
       });
       ai.setHandCards([makeHandCard("inst_tao_1", "tao")]);
 
@@ -167,13 +187,117 @@ describe("HeuristicAI", () => {
     });
   });
 
+  describe("decideAction — draw phase", () => {
+    it("should pass in draw phase", async () => {
+      const view = makeGameView("p1", { currentPhase: "draw" });
+      ai.setHandCards([makeHandCard("inst_sha_1", "sha")]);
+
+      const action = await ai.decideAction(view);
+
+      expect(action.type).toBe("pass");
+    });
+  });
+
+  describe("decideAction — judge phase", () => {
+    it("should pass in judge phase", async () => {
+      const view = makeGameView("p1", { currentPhase: "judge" });
+      ai.setHandCards([makeHandCard("inst_sha_1", "sha")]);
+
+      const action = await ai.decideAction(view);
+
+      expect(action.type).toBe("pass");
+    });
+  });
+
+  describe("decideAction — discard phase", () => {
+    it("should end turn when hand cards within limit", async () => {
+      const view = makeGameView("p1", {
+        currentPhase: "discard",
+        players: [
+          makePlayer("p1", 0, { health: 3, maxHealth: 4, faction: "shu" }),
+          makePlayer("p2", 1, { health: 4, maxHealth: 4, faction: "wei" }),
+        ],
+        playerCount: 2,
+      });
+      ai.setHandCards([
+        makeHandCard("inst_sha_1", "sha"),
+        makeHandCard("inst_shan_1", "shan"),
+        makeHandCard("inst_tao_1", "tao"),
+      ]);
+
+      const action = await ai.decideAction(view);
+
+      expect(action.type).toBe("endTurn");
+    });
+
+    it("should discard excess cards when above hand limit", async () => {
+      const view = makeGameView("p1", {
+        currentPhase: "discard",
+        players: [
+          makePlayer("p1", 0, { health: 2, maxHealth: 4, faction: "shu" }),
+          makePlayer("p2", 1, { health: 4, maxHealth: 4, faction: "wei" }),
+        ],
+        playerCount: 2,
+      });
+      ai.setHandCards([
+        makeHandCard("inst_sha_1", "sha"),
+        makeHandCard("inst_shan_1", "shan"),
+        makeHandCard("inst_tao_1", "tao"),
+        makeHandCard("inst_jiu_1", "jiu"),
+      ]);
+
+      const action = await ai.decideAction(view);
+
+      expect(action.type).toBe("respond");
+      expect(action.data).toBeDefined();
+      expect((action.data as Record<string, unknown>).discardAll).toBeDefined();
+      expect(Array.isArray((action.data as Record<string, unknown>).discardAll)).toBe(true);
+    });
+
+    it("should prioritize discarding jiu and sha first", async () => {
+      const view = makeGameView("p1", {
+        currentPhase: "discard",
+        players: [
+          makePlayer("p1", 0, { health: 2, maxHealth: 4, faction: "shu" }),
+          makePlayer("p2", 1, { health: 4, maxHealth: 4, faction: "wei" }),
+        ],
+        playerCount: 2,
+      });
+      ai.setHandCards([
+        makeHandCard("inst_tao_1", "tao"),
+        makeHandCard("inst_sha_1", "sha"),
+        makeHandCard("inst_jiu_1", "jiu"),
+      ]);
+
+      const action = await ai.decideAction(view);
+
+      expect(action.type).toBe("respond");
+      const discardAll = (action.data as Record<string, unknown>).discardAll as string[];
+      expect(discardAll.length).toBe(1);
+      expect(discardAll[0]).toBe("inst_jiu_1");
+    });
+  });
+
+  describe("distance calculation", () => {
+    it("should consider 4-player ring distance", async () => {
+      const view = makeGameView("p1");
+      ai.setHandCards([makeHandCard("inst_sha_1", "sha")]);
+
+      const action = await ai.decideAction(view);
+
+      expect(action.type).toBe("playCard");
+      expect(action.cardId).toBe("inst_sha_1");
+    });
+  });
+
   describe("decideResponse", () => {
     it("should play shan when 杀 is played against low-health self", async () => {
       const view = makeGameView("p1", {
         players: [
-          makePlayer("p1", { health: 1, maxHealth: 4, faction: "shu" }),
-          makePlayer("p2", { health: 4, maxHealth: 4, faction: "wei" }),
+          makePlayer("p1", 0, { health: 1, maxHealth: 4, faction: "shu" }),
+          makePlayer("p2", 1, { health: 4, maxHealth: 4, faction: "wei" }),
         ],
+        playerCount: 2,
       });
       ai.setHandCards([makeHandCard("inst_shan_1", "shan")]);
 
@@ -270,9 +394,10 @@ describe("HeuristicAI", () => {
     it("should play shan when sha played and hand has many cards", async () => {
       const view = makeGameView("p1", {
         players: [
-          makePlayer("p1", { health: 4, maxHealth: 4, faction: "shu" }),
-          makePlayer("p2", { health: 4, maxHealth: 4, faction: "wei" }),
+          makePlayer("p1", 0, { health: 4, maxHealth: 4, faction: "shu" }),
+          makePlayer("p2", 1, { health: 4, maxHealth: 4, faction: "wei" }),
         ],
+        playerCount: 2,
       });
       ai.setHandCards([
         makeHandCard("inst_shan_1", "shan"),
@@ -298,9 +423,10 @@ describe("HeuristicAI", () => {
     it("should pass when sha played and health is high with few cards", async () => {
       const view = makeGameView("p1", {
         players: [
-          makePlayer("p1", { health: 4, maxHealth: 4, faction: "shu" }),
-          makePlayer("p2", { health: 4, maxHealth: 4, faction: "wei" }),
+          makePlayer("p1", 0, { health: 4, maxHealth: 4, faction: "shu" }),
+          makePlayer("p2", 1, { health: 4, maxHealth: 4, faction: "wei" }),
         ],
+        playerCount: 2,
       });
       ai.setHandCards([makeHandCard("inst_shan_1", "shan")]);
 
@@ -308,6 +434,24 @@ describe("HeuristicAI", () => {
         id: "ev_sha",
         type: "card:played",
         data: { cardType: "sha", cardId: "inst_sha_enemy" },
+        timestamp: Date.now(),
+        stackDepth: 1,
+      };
+
+      const response = await ai.decideResponse(view, event);
+
+      expect(response).not.toBeNull();
+      expect(response!.action).toBe("pass");
+    });
+
+    it("should read cardType from event data correctly", async () => {
+      const view = makeGameView("p1");
+      ai.setHandCards([makeHandCard("inst_shan_1", "shan")]);
+
+      const event: any = {
+        id: "ev_dismantle",
+        type: "card:played",
+        data: { cardType: "dismantle", cardId: "inst_dismantle" },
         timestamp: Date.now(),
         stackDepth: 1,
       };
@@ -373,10 +517,11 @@ describe("HeuristicAI", () => {
     it("should not attack same-faction players", async () => {
       const view = makeGameView("p1", {
         players: [
-          makePlayer("p1", { health: 4, maxHealth: 4, faction: "shu" }),
-          makePlayer("p2", { health: 4, maxHealth: 4, faction: "shu" }),
-          makePlayer("p3", { health: 4, maxHealth: 4, faction: "wei" }),
+          makePlayer("p1", 0, { health: 4, maxHealth: 4, faction: "shu" }),
+          makePlayer("p2", 1, { health: 4, maxHealth: 4, faction: "shu" }),
+          makePlayer("p3", 2, { health: 4, maxHealth: 4, faction: "wei" }),
         ],
+        playerCount: 3,
       });
       ai.setHandCards([makeHandCard("inst_sha_1", "sha")]);
 
@@ -389,10 +534,11 @@ describe("HeuristicAI", () => {
     it("should not attack dead players", async () => {
       const view = makeGameView("p1", {
         players: [
-          makePlayer("p1", { health: 4, maxHealth: 4, faction: "shu" }),
-          makePlayer("p2", { health: 0, maxHealth: 4, faction: "wei", alive: false }),
-          makePlayer("p3", { health: 4, maxHealth: 4, faction: "wei" }),
+          makePlayer("p1", 0, { health: 4, maxHealth: 4, faction: "shu" }),
+          makePlayer("p2", 1, { health: 0, maxHealth: 4, faction: "wei", alive: false }),
+          makePlayer("p3", 2, { health: 4, maxHealth: 4, faction: "wei" }),
         ],
+        playerCount: 3,
       });
       ai.setHandCards([makeHandCard("inst_sha_1", "sha")]);
 
@@ -405,10 +551,11 @@ describe("HeuristicAI", () => {
     it("should prioritize low-health enemies", async () => {
       const view = makeGameView("p1", {
         players: [
-          makePlayer("p1", { health: 4, maxHealth: 4, faction: "shu" }),
-          makePlayer("p2", { health: 4, maxHealth: 4, faction: "wei" }),
-          makePlayer("p3", { health: 1, maxHealth: 4, faction: "wei" }),
+          makePlayer("p1", 0, { health: 4, maxHealth: 4, faction: "shu" }),
+          makePlayer("p2", 1, { health: 4, maxHealth: 4, faction: "wei" }),
+          makePlayer("p3", 2, { health: 1, maxHealth: 4, faction: "wei" }),
         ],
+        playerCount: 3,
       });
       ai.setHandCards([makeHandCard("inst_sha_1", "sha")]);
 

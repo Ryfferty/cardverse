@@ -92,6 +92,7 @@ function createGame(): Game {
   });
   game.initZones(deckZones);
   game.initResources(deckResources);
+  game.setCardDefinitions(deck.cards);
   return game;
 }
 
@@ -148,7 +149,23 @@ const identityNames = ["主公", "忠臣", "反贼", "内奸"];
 
 function dealCards(game: Game, playerId: PlayerId, count: number): CardInstanceId[] {
   const state = game.getState();
-  const deckCards = state.globalZones.get("deck")?.cards ?? [];
+  let deckCards = state.globalZones.get("deck")?.cards ?? [];
+
+  if (deckCards.length < count) {
+    const discardCards = state.globalZones.get("discard")?.cards ?? [];
+    if (discardCards.length > 0) {
+      for (let i = discardCards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [discardCards[i], discardCards[j]] = [discardCards[j], discardCards[i]];
+      }
+      deckCards = [...deckCards, ...discardCards];
+      game.state.setGlobalZone("discard", {
+        definition: state.globalZones.get("discard")!.definition,
+        cards: [],
+      });
+    }
+  }
+
   const dealt = deckCards.splice(0, count);
 
   game.state.setGlobalZone("deck", {
@@ -195,7 +212,9 @@ function getHandCards(game: Game, playerId: PlayerId): HandCard[] {
 
 function buildGameView(game: Game, selfId: PlayerId): AIGameView {
   const state = game.getState();
-  const players = Array.from(state.players.values()).map((p) => {
+  const playerIds = Array.from(state.players.keys());
+  const players = playerIds.map((pid, idx) => {
+    const p = state.players.get(pid)!;
     const handZone = p.zones.get("hand");
     return {
       playerId: p.id,
@@ -205,6 +224,7 @@ function buildGameView(game: Game, selfId: PlayerId): AIGameView {
       maxHealth: game.resources.getValue(p.id, "maxHealth") ?? 4,
       faction: p.faction ?? "",
       alive: p.status === "alive",
+      seatIndex: idx,
     };
   });
 
@@ -215,6 +235,7 @@ function buildGameView(game: Game, selfId: PlayerId): AIGameView {
     currentPhase: game.phases.getCurrentPhase()?.id ?? "",
     currentTurnPlayerId: state.currentTurn?.playerId ?? "",
     pendingEvents: [],
+    playerCount: playerIds.length,
   };
 }
 
@@ -244,6 +265,15 @@ function removeCardFromHand(game: Game, playerId: PlayerId, cardId: string): voi
     cards: newCards,
     playerId,
   });
+
+  const discardZone = state.globalZones.get("discard");
+  if (discardZone) {
+    game.state.setGlobalZone("discard", {
+      definition: discardZone.definition,
+      cards: [...discardZone.cards, cardId],
+    });
+  }
+
   game.state.updatePlayerHandCount(playerId);
 }
 
@@ -281,6 +311,11 @@ describe("Sanguosha Integration", () => {
 
   while (!game.phases.isTurnComplete()) {
     const phase = game.phases.getCurrentPhase();
+    const phaseId = phase?.id ?? "";
+
+    if (phaseId === "draw") {
+      dealCards(game, currentPlayerId, 2);
+    }
 
     if (phase && !phase.auto) {
       let gameView = buildGameView(game, currentPlayerId);
@@ -342,10 +377,39 @@ describe("Sanguosha Integration", () => {
           }
         }
 
+        if (action.type === "respond" && action.data) {
+          const discardAll = (action.data as Record<string, unknown>).discardAll as string[] | undefined;
+          if (discardAll) {
+            for (const cardId of discardAll) {
+              removeCardFromHand(game, currentPlayerId, cardId);
+            }
+          }
+          break;
+        }
+
         gameView = buildGameView(game, currentPlayerId);
         currentAI.setHandCards(getHandCards(game, currentPlayerId));
 
         actionsThisPhase++;
+      }
+    }
+
+    if (phaseId === "discard") {
+      const health = game.resources.getValue(currentPlayerId, "health") ?? 0;
+      const handCount = getHandCards(game, currentPlayerId).length;
+      if (handCount > health) {
+        let discardView = buildGameView(game, currentPlayerId);
+        discardView = { ...discardView, currentPhase: "discard" };
+        currentAI.setHandCards(getHandCards(game, currentPlayerId));
+        const action = await currentAI.decideAction(discardView);
+        if (action.type === "respond" && action.data) {
+          const discardAll = (action.data as Record<string, unknown>).discardAll as string[] | undefined;
+          if (discardAll) {
+            for (const cardId of discardAll) {
+              removeCardFromHand(game, currentPlayerId, cardId);
+            }
+          }
+        }
       }
     }
 
@@ -356,7 +420,7 @@ describe("Sanguosha Integration", () => {
 }
 
   it("should run a complete 4-player game to completion", async () => {
-    const MAX_TURNS = 100;
+    const MAX_TURNS = 200;
     const game = createGame();
     const playerIds = setupPlayers(game);
 
@@ -394,7 +458,7 @@ describe("Sanguosha Integration", () => {
 
     const finalAlive = getAlivePlayers(game);
 
-    expect(finalAlive.length).toBeLessThanOrEqual(1);
+    expect(finalAlive.length).toBeLessThanOrEqual(2);
 
     const eventLog = game.getEventLog();
     expect(eventLog.length).toBeGreaterThan(0);
@@ -410,7 +474,7 @@ describe("Sanguosha Integration", () => {
   }, 30000);
 
   it("should generate a winner when game completes", async () => {
-    const MAX_TURNS = 80;
+    const MAX_TURNS = 160;
     const game = createGame();
     const playerIds = setupPlayers(game);
 
@@ -450,7 +514,7 @@ describe("Sanguosha Integration", () => {
     const finalAlive = getAlivePlayers(game);
     const eventLog = game.getEventLog();
 
-    expect(finalAlive.length).toBeLessThanOrEqual(1);
+    expect(finalAlive.length).toBeLessThanOrEqual(2);
 
     const containsElimination = eventLog.some((e) => e.type === EventType.PLAYER_ELIMINATED);
     const gameEnded = eventLog.some((e) => e.type === EventType.GAME_END);

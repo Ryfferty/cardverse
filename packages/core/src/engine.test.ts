@@ -265,10 +265,14 @@ describe("Game", () => {
       expect(p1Hand?.cards).toEqual(["card2", "card3"]);
     });
 
-    it("should include targets in event data", async () => {
+    it("should include targets and cardType in event data", async () => {
       const game = setupTwoPlayerGame();
       game.initPhases(testPhases);
       await game.start();
+
+      const cardDefs = new Map<string, import("@cardverse/shared").CardDefinition>();
+      cardDefs.set("card1", { id: "sha", name: "杀", category: "basic" });
+      game.setCardDefinitions(cardDefs);
 
       let capturedData: any;
       game.eventBus.on("*", async (event) => {
@@ -283,6 +287,25 @@ describe("Game", () => {
       expect(capturedData.cardId).toBe("card1");
       expect(capturedData.playerId).toBe("p1");
       expect(capturedData.targets).toEqual(["p2"]);
+      expect(capturedData.cardType).toBeDefined();
+    });
+
+    it("should resolve cardType from card definitions", async () => {
+      const game = setupTwoPlayerGame();
+      const cardDefs = new Map<string, import("@cardverse/shared").CardDefinition>();
+      cardDefs.set("sha", { id: "sha", name: "杀", category: "basic" });
+      cardDefs.set("tao", { id: "tao", name: "桃", category: "basic" });
+      cardDefs.set("shan", { id: "shan", name: "闪", category: "basic" });
+      cardDefs.set("zhugeliannu", { id: "zhugeliannu", name: "诸葛连弩", category: "equipment" });
+      cardDefs.set("nanman", { id: "nanman", name: "南蛮入侵", category: "trick" });
+      game.setCardDefinitions(cardDefs);
+
+      expect(game.getCardType("inst_sha_1")).toBe("sha");
+      expect(game.getCardType("inst_tao_5")).toBe("tao");
+      expect(game.getCardType("inst_shan_3")).toBe("shan");
+      expect(game.getCardType("inst_zhugeliannu_1")).toBe("equipment");
+      expect(game.getCardType("inst_nanman_1")).toBe("nanman");
+      expect(game.getCardType("inst_unknown_1")).toBe("unknown");
     });
   });
 
