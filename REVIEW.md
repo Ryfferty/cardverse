@@ -746,5 +746,90 @@
 
 ---
 
+## REVIEW-063~065 修复验证（网络包）
+
+**测试**: ✅ 22/22 通过 | **构建**: ✅ 通过
+
+| 审查 | 问题 | 验证 | 说明 |
+|------|------|------|------|
+| 063 | TCP → WebSocket | ✅ 正确修复 | host 用 `ws` WebSocketServer，client 用全局 WebSocket + 平台检测 |
+| 064 | 未集成 core | ✅ 正确修复 | 新增 `syncGame(game)` 方法，EventBus 通配符监听广播到客户端 |
+| 065 | static 存储 | ✅ 正确修复 | RoomManager 全部改为实例方法，HostServer 构造函数中 `new RoomManager()` |
+
+**2 个中等建议**（不阻塞）：
+1. `syncGame` 无取消订阅机制 — `HostServer.stop()` 不清除 EventBus 监听器
+2. 仅支持 `ws://` 无 TLS — 局域网可接受
+
+---
+
+## TASK-017 遗留问题跟踪
+
+**REVIEW-066~075 状态**: ❌ **10 项全部未处理**
+
+本轮 Trae SOLO 仅处理了 REVIEW-063~065（网络包）和 TASK-018（API 文档），未触及编辑器和 web main.ts 的 bug。下次运行应优先处理 🔴 项。
+
+---
+
+## TASK-018 审查（核心 API 文档）
+
+**文档**: ✅ 7 个文件（index + game + events + state + zones + phases + resources）
+**覆盖**: Game / EventBus / EventStack / StateManager / ZoneManager / PhaseManager / ResourceManager
+
+### REVIEW-076: EventResponse 类型定义多处错误（events.md + game.md）
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-018
+- **文件**: `docs/api/events.md`, `docs/api/game.md`
+- **日期**: 2026-05-19
+- **问题**: 文档用 `type: string` + `data: Record<string, unknown>`，实际源码是 `action: string`（字段名不同）、`targets?: PlayerId[]`（遗漏）、`data` 为可选。
+- **建议**: 修正为 `action` 字段，补充 `targets`，标注 `data` 为可选。
+- **优先级**: 🔴 高（会导致使用者写出编译不过的代码）
+
+### REVIEW-077: PhaseDefinition.autoAdvance 字段名错误（phases.md）
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-018
+- **文件**: `docs/api/phases.md`
+- **日期**: 2026-05-19
+- **问题**: 文档用 `autoAdvance?: boolean`，实际源码是 `auto: boolean`（必填，字段名不同）。
+- **建议**: 修正为 `auto: boolean`。
+- **优先级**: 🔴 高（类型不匹配）
+
+### REVIEW-078: GameState.status 和 PlayerState.status 枚举值不完整（state.md）
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-018
+- **文件**: `docs/api/state.md`
+- **日期**: 2026-05-19
+- **问题**: GameState.status 缺少 `"setup"` 和 `"paused"`；PlayerState.status 缺少 `"disconnected"`。
+- **建议**: 补充完整枚举值。
+- **优先级**: 🔴 高
+
+### REVIEW-079: EventStack.push() 类型签名不精确（events.md）
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-018
+- **文件**: `docs/api/events.md`
+- **日期**: 2026-05-19
+- **问题**: 文档签名遗漏了 `| "type"` 的 Omit 和 `& { type: string }` 交叉类型。
+- **建议**: 与源码签名对齐。
+- **优先级**: 🟡 中
+
+### REVIEW-080: ZoneManager.getCards() 方法未文档化（zones.md）
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-018
+- **文件**: `docs/api/zones.md`
+- **日期**: 2026-05-19
+- **问题**: 源码存在公开方法 `getCards(key): CardInstanceId[]`，文档完全未列出。
+- **建议**: 补充方法说明。
+- **优先级**: 🟡 中
+
+### REVIEW-081: StateManager.applyEvent 事件类型表格不完整（state.md）
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-018
+- **文件**: `docs/api/state.md`
+- **日期**: 2026-05-19
+- **问题**: 表格仅列 11 种事件，源码还处理 `phase:end`、`damage:dealt/taken`、`heal:received`、`response:requested/given/timeout`。
+- **建议**: 补充说明"以下事件被识别但不直接修改状态"。
+- **优先级**: 🟡 中
+
+---
+
 *审查人: Hermes Agent | 日期: 2026-05-19*
     73|    73|
