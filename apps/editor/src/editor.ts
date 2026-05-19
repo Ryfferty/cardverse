@@ -1,3 +1,5 @@
+import type { CardDefinition, EffectContext } from "@cardverse/shared";
+
 export interface CardEffectEditor {
   id: string;
   name: string;
@@ -54,25 +56,37 @@ export function createEmptyCharacter(): CharacterEditorData {
   };
 }
 
+export function validateCardId(id: string, existingIds: Set<string>): string | null {
+  if (!id.trim()) return "ID 不能为空";
+  if (!/^[a-z][a-z0-9_]*$/.test(id)) return "ID 必须以小写字母开头，只能包含小写字母、数字和下划线";
+  if (existingIds.has(id)) return `ID "${id}" 已存在`;
+  return null;
+}
+
+export function validateCharId(id: string, existingIds: Set<string>): string | null {
+  if (!id.trim()) return "ID 不能为空";
+  if (!/^[a-z][a-z0-9_]*$/.test(id)) return "ID 必须以小写字母开头，只能包含小写字母、数字和下划线";
+  if (existingIds.has(id)) return `ID "${id}" 已存在`;
+  return null;
+}
+
 export function cardToJSON(card: CardEditorData): string {
+  const effects = card.effects.map((e) => ({
+    id: e.id,
+    name: e.name,
+    type: e.type,
+    params: e.params,
+    script: e.script,
+  }));
+
   const obj: Record<string, unknown> = {
     id: card.id,
     name: card.name,
     category: card.category,
     count: card.count,
-    description: card.description,
-    effects: card.effects.map((e) => ({
-      id: e.id,
-      name: e.name,
-      type: e.type,
-      params: e.params,
-      script: e.script,
-    })),
+    effects,
+    ...(card.description ? { description: card.description } : {}),
   };
-
-  if (!card.description) {
-    delete obj.description;
-  }
 
   return JSON.stringify(obj, null, 2);
 }
@@ -96,13 +110,18 @@ export function characterToJSON(char: CharacterEditorData): string {
   return JSON.stringify(obj, null, 2);
 }
 
-export function buildDeckExport(cards: CardEditorData[], characters: CharacterEditorData[]): string {
+export function buildDeckExport(
+  cards: CardEditorData[],
+  characters: CharacterEditorData[],
+  deckId?: string,
+  deckName?: string
+): string {
   const result: Record<string, unknown> = {
     cards,
     characters,
     manifest: {
-      id: "custom-deck",
-      name: "自定义卡组",
+      id: deckId || "custom-deck",
+      name: deckName || "自定义卡组",
       version: "1.0.0",
       created: new Date().toISOString(),
     },

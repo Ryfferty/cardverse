@@ -146,7 +146,6 @@ async function main(): Promise<void> {
   await game.start();
 
   let turnNumber = 1;
-  let phaseIndex = 0;
 
   const ui = new GameUI();
   await ui.init(appRoot, {
@@ -160,17 +159,15 @@ async function main(): Promise<void> {
 
   ui.setInteractionCallback((action, cardIds) => {
     if (action === "play" && cardIds.length > 0) {
-      const currentPlayerId = players[turnNumber % players.length];
+      const currentPlayerId = game.getState().currentTurn?.playerId ?? players[0];
       game.playCard(currentPlayerId, cardIds[0], []).catch((e) => {
         console.error("Play card failed:", e);
       });
-      updateGameState();
     }
 
     if (action === "endTurn") {
       game.endTurn().then(() => {
         turnNumber++;
-        phaseIndex = 0;
         updateGameState();
       }).catch((e) => {
         console.error("End turn failed:", e);
@@ -188,6 +185,8 @@ async function main(): Promise<void> {
 
     const health = game.resources.getValue(pid, "health") ?? 4;
     const maxHealth = game.resources.getValue(pid, "maxHealth") ?? 4;
+    const currentTurn = state.currentTurn;
+    const phaseIndex = currentTurn?.phaseIndex ?? 0;
     const currentPhaseId = phases[phaseIndex % phases.length]?.id ?? "play";
 
     ui.update({
@@ -253,7 +252,6 @@ async function main(): Promise<void> {
     game.nextPhase().catch((e) => {
       console.error("Next phase failed:", e);
     });
-    updateGameState();
   });
 
   updateGameState();
@@ -261,8 +259,14 @@ async function main(): Promise<void> {
 
 main().catch((err) => {
   console.error("Failed to initialize CardVerse UI:", err);
-  document.body.innerHTML = `<div style="color:#f44;padding:40px;font-family:Arial,sans-serif;">
-    <h2>CardVerse 启动失败</h2>
-    <p>${err instanceof Error ? err.message : String(err)}</p>
-  </div>`;
+  const container = document.createElement("div");
+  container.style.cssText = "color:#f44;padding:40px;font-family:Arial,sans-serif;";
+  const heading = document.createElement("h2");
+  heading.textContent = "CardVerse 启动失败";
+  const message = document.createElement("p");
+  message.textContent = err instanceof Error ? err.message : String(err);
+  container.appendChild(heading);
+  container.appendChild(message);
+  document.body.innerHTML = "";
+  document.body.appendChild(container);
 });

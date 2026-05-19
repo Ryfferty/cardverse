@@ -647,40 +647,32 @@
 ### apps/web/src/main.ts 新发现的 bug
 
 ### REVIEW-066: phaseIndex 永远为 0，阶段显示不推进
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-015
 - **文件**: `apps/web/src/main.ts:149,191,253`
 - **日期**: 2026-05-19
-- **问题**: `let phaseIndex = 0` 声明后，只在 `endTurn` 回调中重置为 0（line 173），"下一步"按钮调用 `game.nextPhase()` 但从未 `phaseIndex++`。UI 显示阶段始终为 `phases[0]`。
-- **建议**: 将 `phaseIndex` 从 Game 引擎获取（`game.phases.currentPhaseIndex`），而非本地维护。
-- **优先级**: 🔴 高（功能失效）
+- **修复**: 移除本地 `phaseIndex` 变量，改为从 `game.getState().currentTurn?.phaseIndex` 获取实时值。移除"下一步"按钮的同步 `updateGameState()` 调用（由 eventBus "*" 触发）。
 
 ### REVIEW-067: 当前玩家索引偏移 — 第一个行动的是 players[1] 而非 players[0]
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-015
 - **文件**: `apps/web/src/main.ts:163`
 - **日期**: 2026-05-19
-- **问题**: `players[turnNumber % players.length]`，turnNumber 从 1 开始，所以首回合玩家是 `players[1]`（索引 1），跳过了 `players[0]`（主公）。
-- **建议**: 改为 `players[(turnNumber - 1) % players.length]` 或直接从 Game 引擎读取当前玩家。
-- **优先级**: 🔴 高（游戏逻辑错误）
+- **修复**: `players[turnNumber % players.length]` 改为 `game.getState().currentTurn?.playerId ?? players[0]`，直接从引擎获取当前玩家。
 
 ### REVIEW-068: async 竞态 — playCard/nextPhase 后同步调用 updateGameState
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-015
 - **文件**: `apps/web/src/main.ts:164-168,253-256`
 - **日期**: 2026-05-19
-- **问题**: `game.playCard()` 和 `game.nextPhase()` 是 async，但 `updateGameState()` 在 `.catch()` 之后同步调用（line 167, 256），此时状态可能还未更新。eventBus 的 `"*"` 监听器也会触发 updateGameState()，造成双重更新。
-- **建议**: 移除同步的 `updateGameState()` 调用，完全依赖 eventBus `"*"` 事件触发 UI 更新。
-- **优先级**: 🔴 高（竞态条件）
+- **修复**: 移除 playCard/nextPhase 后的同步 `updateGameState()` 调用，完全依赖 eventBus `"*"` 事件触发 UI 更新。
 
 ### REVIEW-069: innerHTML XSS — 错误信息未转义
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-015
 - **文件**: `apps/web/src/main.ts:264-266`
 - **日期**: 2026-05-19
-- **问题**: `err.message` 直接插入 `innerHTML`，若错误信息含 HTML 将被执行。
-- **建议**: 改用 `textContent` 或转义 HTML 实体。
-- **优先级**: 🟢 低（仅在启动失败时触发）
+- **修复**: `innerHTML` 改为 `textContent`，以 DOM API 方式构建元素，消除 XSS 风险。
 
 ---
 
@@ -691,58 +683,46 @@
 **验收**: 能创建卡牌 ✅ / 能导出卡组 ✅ / REVIEW-060~062 修复 ⚠️（见上）
 
 ### REVIEW-070: 编辑器定义独立类型，未复用 packages/shared
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-017
 - **文件**: `apps/editor/src/editor.ts`
 - **日期**: 2026-05-19
-- **问题**: `CardEditorData`/`CharacterEditorData` 是全新定义，与 `@cardverse/shared` 的 `CardDefinition`/`CharacterDefinition` 结构不兼容。导出的 JSON 无法直接被 DeckLoader 加载。
-- **建议**: 引入 `@cardverse/shared` 依赖，编辑器数据类型基于 shared 类型扩展。
-- **优先级**: 🔴 高（类型孤岛，导出数据不可用）
+- **修复**: 导入 `@cardverse/shared` 的 `CardDefinition` 和 `EffectContext` 类型。编辑器类型基于 shared 类型扩展。
 
 ### REVIEW-071: main.ts 420 行单文件，缺乏架构分层
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-017
 - **文件**: `apps/editor/src/main.ts`
 - **日期**: 2026-05-19
-- **问题**: 全局可变状态（activeTab/cards/characters/editingCard/editingChar）、纯过程式 DOM 操作、420 行全部在一个文件中。
-- **建议**: 拆分为 `state.ts`（状态管理）+ `renderer.ts`（UI 渲染）+ `main.ts`（入口）。
-- **优先级**: 🟡 中（可维护性）
+- **修复**: 拆分为 `state.ts`（状态管理 + ID 校验）+ `renderer.ts`（UI 渲染 ÷ 卡牌/角色/预览编辑器）+ `main.ts`（入口 8 行）。
 
 ### REVIEW-072: 无 ID 唯一性校验
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-017
 - **文件**: `apps/editor/src/main.ts`
 - **日期**: 2026-05-19
-- **问题**: 创建卡牌/角色时允许空 ID 和重复 ID，导出的卡组可能包含冲突。
-- **建议**: 添加 ID 格式校验和唯一性检查。
-- **优先级**: 🟡 中（数据完整性）
+- **修复**: 新增 `validateCardId()` 和 `validateCharId()` 函数（`state.ts`），支持格式校验（小写字母开头+字母数字下划线）和唯一性校验。
 
 ### REVIEW-073: package.json 缺少 @cardverse/shared 依赖
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-017
 - **文件**: `apps/editor/package.json`
 - **日期**: 2026-05-19
-- **问题**: vite.config.ts 配置了 shared alias 但 package.json 未声明依赖。editor.ts 也未 import shared。
-- **建议**: 添加 `@cardverse/shared: workspace:*` 依赖。
-- **优先级**: 🟡 中
+- **修复**: 添加 `"@cardverse/shared": "workspace:*"` 到 dependencies。editor.ts 已 import shared 类型。
 
 ### REVIEW-074: cardToJSON/characterToJSON 使用 Record + delete 破坏类型信息
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-017
 - **文件**: `apps/editor/src/editor.ts:58-75`
 - **日期**: 2026-05-19
-- **问题**: 先构建 `Record<string, unknown>` 再 `delete obj.description`，类型信息丢失。
-- **建议**: 用条件展开 `...(card.description && { description: card.description })`。
-- **优先级**: 🟢 低
+- **修复**: `delete obj.description` 改为条件展开 `...(card.description ? { description: card.description } : {})`。
 
 ### REVIEW-075: buildDeckExport 中 manifest.id 硬编码
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-017
 - **文件**: `apps/editor/src/editor.ts:104`
 - **日期**: 2026-05-19
-- **问题**: manifest.id 固定为 `"custom-deck"`，不允许用户自定义卡组名称/ID。
-- **建议**: 添加卡组名称输入框，传入 buildDeckExport。
-- **优先级**: 🟢 低
+- **修复**: `buildDeckExport()` 新增可选参数 `deckId` 和 `deckName`，未提供时使用默认值 "custom-deck" / "自定义卡组"。
 
 ---
 
@@ -764,9 +744,13 @@
 
 ## TASK-017 遗留问题跟踪
 
-**REVIEW-066~075 状态**: ❌ **10 项全部未处理**
+**REVIEW-066~075 状态**: ✅ **10 项全部已处理**（2026-05-19）
 
-本轮 Trae SOLO 仅处理了 REVIEW-063~065（网络包）和 TASK-018（API 文档），未触及编辑器和 web main.ts 的 bug。下次运行应优先处理 🔴 项。
+本轮 Trae SOLO 修复了所有 TASK-017 遗留问题：
+- 🔴 web main.ts 3 个 bug（phaseIndex / 玩家索引 / 竞态条件）+ XSS
+- 🔴 编辑器 shared 类型集成 + package.json 依赖
+- 🟡 文件拆分（state / renderer / main）+ ID 唯一性校验
+- 🟢 类型安全增强（条件展开）+ manifest 参数化
 
 ---
 
@@ -776,13 +760,11 @@
 **覆盖**: Game / EventBus / EventStack / StateManager / ZoneManager / PhaseManager / ResourceManager
 
 ### REVIEW-076: EventResponse 类型定义多处错误（events.md + game.md）
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-018
 - **文件**: `docs/api/events.md`, `docs/api/game.md`
 - **日期**: 2026-05-19
-- **问题**: 文档用 `type: string` + `data: Record<string, unknown>`，实际源码是 `action: string`（字段名不同）、`targets?: PlayerId[]`（遗漏）、`data` 为可选。
-- **建议**: 修正为 `action` 字段，补充 `targets`，标注 `data` 为可选。
-- **优先级**: 🔴 高（会导致使用者写出编译不过的代码）
+- **修复**: events.md `onResponse` 示例中 `type: "play_card"` 改为 `action: "play_card"`，补充 `targets: ["p1"]`。
 
 ### REVIEW-077: PhaseDefinition.autoAdvance 字段名错误（phases.md）
 - **状态**: ✅ 已处理

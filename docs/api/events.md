@@ -86,11 +86,11 @@ type ResponseHandler = (
 
 ```typescript
 eventBus.onResponse("card:played", (event) => {
-  // 返回 null 表示不响应
   return {
     playerId: "p2",
     cardId: "shan_1",
-    type: "play_card",
+    action: "play_card",
+    targets: ["p1"],
     data: {},
   };
 });
