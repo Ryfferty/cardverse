@@ -406,6 +406,7 @@ export interface EditorElements {
   charListEl: HTMLElement;
   editorPanel: HTMLElement;
   previewEl: HTMLElement;
+  statusBar: HTMLElement;
 }
 
 export function buildLayout(state: EditorState, rerender: () => void): EditorElements {
@@ -440,13 +441,49 @@ export function buildLayout(state: EditorState, rerender: () => void): EditorEle
   body.appendChild(previewEl);
 
   container.appendChild(body);
+
+  const statusBar = h("div", {
+    style: "display:flex;align-items:center;gap:8px;padding:6px 12px;border-top:1px solid #21262d;background:#0d1117;font-size:12px;color:#8b949e;",
+  });
+
+  const saveIndicator = h("span", { id: "save-indicator", style: "color:#3fb950;" }, ["已就绪"]);
+  statusBar.appendChild(saveIndicator);
+
+  const spacer = h("div", { style: "flex:1;" });
+  statusBar.appendChild(spacer);
+
+  const importLabel = h("label", {
+    style: `background:#1f6feb;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;`,
+  }, ["导入 JSON"]);
+  const importInput = h("input", {
+    type: "file",
+    accept: ".json",
+    id: "import-file-input",
+    style: "display:none;",
+  });
+  importLabel.appendChild(importInput);
+  statusBar.appendChild(importLabel);
+
+  const clearBtn = h("button", {
+    id: "clear-btn",
+    style: "background:#da3633;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;",
+  }, ["清空数据"]);
+  statusBar.appendChild(clearBtn);
+
+  container.appendChild(statusBar);
   app.appendChild(container);
 
-  return { tabs: tabsEl, cardListEl, charListEl, editorPanel, previewEl };
+  return { tabs: tabsEl, cardListEl, charListEl, editorPanel, previewEl, statusBar };
 }
 
 export function render(state: EditorState, elements: EditorElements): void {
-  const { tabs, cardListEl, charListEl, editorPanel, previewEl } = elements;
+  const { tabs, cardListEl, charListEl, editorPanel, previewEl, statusBar } = elements;
+
+  const saveIndicator = statusBar.querySelector("#save-indicator") as HTMLElement | null;
+  if (saveIndicator) {
+    saveIndicator.textContent = `已保存 ${new Date().toLocaleTimeString()}`;
+    saveIndicator.style.color = "#3fb950";
+  }
 
   const listPanel = state.activeTab === "cards" ? cardListEl : charListEl;
   const otherPanel = state.activeTab === "cards" ? charListEl : cardListEl;
