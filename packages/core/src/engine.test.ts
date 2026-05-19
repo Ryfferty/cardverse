@@ -598,6 +598,168 @@ describe("Game", () => {
     });
   });
 
+  describe("draw / discard automation", () => {
+    it("should auto-draw 2 cards during draw phase", async () => {
+      const game = setupTwoPlayerGame();
+      game.initPhases(testPhases);
+      game.initZones([deckZoneDef, discardZoneDef]);
+      game.initPlayerZones("p1", [handZoneDef]);
+      game.initPlayerZones("p2", [handZoneDef]);
+
+      game.state.setGlobalZone("deck", {
+        definition: deckZoneDef,
+        cards: ["card_a", "card_b", "card_c", "card_d"],
+      });
+
+      await game.start();
+      await game.startTurn("p1");
+
+      // Reset hand to empty
+      game.state.setPlayerZone("p1", "hand", {
+        definition: handZoneDef,
+        cards: [],
+        playerId: "p1",
+      });
+
+      expect(game.getPlayerHandCount("p1")).toBe(0);
+
+      // Query exact phase names: preparation → judge → draw
+      const phases = game.phases.getAllPhases();
+      const drawIdx = phases.findIndex(p => p.id === "draw");
+      game.phases.goToPhase(drawIdx - 1);
+
+      // First nextPhase: enters draw phase
+      await game.nextPhase();
+      // Second nextPhase: leaves draw phase, triggers auto-draw
+      await game.nextPhase();
+
+      expect(game.getPlayerHandCount("p1")).toBe(2);
+
+      const deck = game.getState().globalZones.get("deck");
+      expect(deck?.cards.length).toBe(2);
+    });
+
+    it("should auto-discard excess cards during discard phase", async () => {
+      const game = setupTwoPlayerGame();
+      game.initPhases(testPhases);
+      game.initZones([deckZoneDef, discardZoneDef]);
+      game.initPlayerZones("p1", [handZoneDef]);
+      game.initPlayerZones("p2", [handZoneDef]);
+
+      await game.start();
+
+      game.resources.set("p1", "health", 2);
+      // Reset hand
+      game.state.setPlayerZone("p1", "hand", {
+        definition: handZoneDef,
+        cards: ["card_j", "card_k", "card_l"],
+        playerId: "p1",
+      });
+
+      await game.startTurn("p1");
+      const phases = game.phases.getAllPhases();
+      const discIdx = phases.findIndex(p => p.id === "discard");
+      game.phases.goToPhase(discIdx - 1);
+
+      // Enter discard, then leave it to trigger auto-discard
+      await game.nextPhase();
+      await game.nextPhase();
+
+      expect(game.getPlayerHandCount("p1")).toBeLessThanOrEqual(2);
+    });
+
+    it("should not discard when hand within limit", async () => {
+      const game = setupTwoPlayerGame();
+      game.initPhases(testPhases);
+      game.initZones([deckZoneDef, discardZoneDef]);
+      game.initPlayerZones("p1", [handZoneDef]);
+      game.initPlayerZones("p2", [handZoneDef]);
+
+      await game.start();
+
+      game.resources.set("p1", "health", 4);
+      game.state.setPlayerZone("p1", "hand", {
+        definition: handZoneDef,
+        cards: ["card_a", "card_b"],
+        playerId: "p1",
+      });
+
+      await game.startTurn("p1");
+      const phases = game.phases.getAllPhases();
+      const discIdx = phases.findIndex(p => p.id === "discard");
+      game.phases.goToPhase(discIdx - 1);
+
+      await game.nextPhase();
+
+      expect(game.getPlayerHandCount("p1")).toBe(2);
+    });
+
+    it("discardCard should emit CARD_DISCARDED event", async () => {
+      const game = setupTwoPlayerGame();
+      game.initPhases(testPhases);
+      game.initZones([deckZoneDef, discardZoneDef]);
+      game.initPlayerZones("p1", [handZoneDef]);
+
+      await game.start();
+
+      let discarded = false;
+      game.eventBus.on("*", async (event) => {
+        if (event.type === EventType.CARD_DISCARDED) discarded = true;
+      });
+
+      game.state.setPlayerZone("p1", "hand", {
+        definition: handZoneDef,
+        cards: ["card_x"],
+        playerId: "p1",
+      });
+      await game.discardCard("p1", "card_x");
+
+      expect(discarded).toBe(true);
+    });
+
+    it("drawCards should draw multiple cards", async () => {
+      const game = setupTwoPlayerGame();
+      game.initPhases(testPhases);
+      game.initZones([deckZoneDef, discardZoneDef]);
+      game.initPlayerZones("p1", [handZoneDef]);
+
+      await game.start();
+
+      game.state.setGlobalZone("deck", {
+        definition: deckZoneDef,
+        cards: ["card_a", "card_b", "card_c"],
+      });
+
+      const drawn = await game.drawCards("p1", 2);
+
+      expect(drawn.length).toBe(2);
+      expect(drawn).toEqual(["card_a", "card_b"]);
+    });
+
+    it("getPlayerHandCards should return hand card IDs", async () => {
+      const game = setupTwoPlayerGame();
+      game.initZones([deckZoneDef, discardZoneDef]);
+      game.initPlayerZones("p1", [handZoneDef]);
+      game.initPlayerZones("p2", [handZoneDef]);
+
+      game.state.setPlayerZone("p1", "hand", {
+        definition: handZoneDef,
+        cards: ["h1", "h2", "h3"],
+        playerId: "p1",
+      });
+      game.state.setPlayerZone("p2", "hand", {
+        definition: handZoneDef,
+        cards: [],
+        playerId: "p2",
+      });
+      const cards = game.getPlayerHandCards("p1");
+      expect(cards).toEqual(["h1", "h2", "h3"]);
+
+      const empty = game.getPlayerHandCards("p2");
+      expect(empty).toEqual([]);
+    });
+  });
+
   describe("integration", () => {
     it("should simulate a 2-turn game", async () => {
       const game = setupTwoPlayerGame();

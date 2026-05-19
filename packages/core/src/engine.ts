@@ -186,11 +186,24 @@ export class Game {
 
   /**
    * Advance to the next phase.
+   * Auto-executes draw and discard phase logic.
    */
   async nextPhase(gameStateOverride?: Record<string, unknown>): Promise<boolean> {
+    const oldPhase = this.phases.getCurrentPhase();
     const phase = this.phases.nextPhase(gameStateOverride);
     if (!phase) {
       return false;
+    }
+
+    const currentPlayerId = this.phases.getTurnInfo()?.playerId;
+
+    if (oldPhase?.auto && currentPlayerId) {
+      if (oldPhase.id === "draw") {
+        await this.autoDrawPhase(currentPlayerId);
+      }
+      if (oldPhase.id === "discard") {
+        await this.autoDiscardPhase(currentPlayerId);
+      }
     }
 
     await this.emitAndApply({
@@ -201,6 +214,23 @@ export class Game {
       },
     });
     return true;
+  }
+
+  private async autoDrawPhase(playerId: PlayerId): Promise<void> {
+    await this.drawCards(playerId, 2);
+  }
+
+  private async autoDiscardPhase(playerId: PlayerId): Promise<void> {
+    const handCards = this.getPlayerHandCards(playerId);
+    const health = this.resources.getValue(playerId, "health") ?? 0;
+    const excess = handCards.length - health;
+
+    if (excess <= 0) return;
+
+    const toDiscard = handCards.slice(0, excess);
+    for (const cardId of toDiscard) {
+      await this.discardCard(playerId, cardId);
+    }
   }
 
   /**
@@ -297,6 +327,43 @@ export class Game {
       source: playerId,
       data: { cardId, playerId },
     });
+  }
+
+  async drawCards(playerId: PlayerId, count: number): Promise<CardInstanceId[]> {
+    const state = this.getState();
+    const deckZone = state.globalZones.get("deck");
+    if (!deckZone) return [];
+
+    const drawn: CardInstanceId[] = [];
+    for (let i = 0; i < count && deckZone.cards.length > 0; i++) {
+      const cardId = deckZone.cards[0];
+      deckZone.cards.splice(0, 1);
+      drawn.push(cardId);
+      await this.drawCard(playerId, cardId);
+    }
+
+    return drawn;
+  }
+
+  async discardCard(playerId: PlayerId, cardId: CardInstanceId): Promise<void> {
+    await this.emitAndApply({
+      type: EventType.CARD_DISCARDED,
+      source: playerId,
+      data: { cardId, playerId },
+    });
+  }
+
+  getPlayerHandCards(playerId: PlayerId): CardInstanceId[] {
+    const state = this.getState();
+    const player = state.players.get(playerId);
+    if (!player) return [];
+
+    const handZone = player.zones.get("hand");
+    return handZone ? [...handZone.cards] : [];
+  }
+
+  getPlayerHandCount(playerId: PlayerId): number {
+    return this.getPlayerHandCards(playerId).length;
   }
 
   /**
