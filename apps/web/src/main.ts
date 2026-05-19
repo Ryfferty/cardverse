@@ -7,6 +7,7 @@ import { Game } from "@cardverse/core";
 import type { ZoneDefinition, PhaseDefinition, ResourceDefinition, PlayerId, CardInstanceId } from "@cardverse/shared";
 import { ResponseDialog } from "./ResponseDialog.js";
 import { DiscardDialog } from "./DiscardDialog.js";
+import { GameLogPanel } from "./GameLogPanel.js";
 import { OpponentPanel, type OpponentInfo } from "./OpponentPanel.js";
 
 interface DeckCard {
@@ -480,8 +481,17 @@ async function main(): Promise<void> {
     }
   });
 
+  const gameLogPanel = new GameLogPanel();
+  gameLogPanel.mount(appRoot);
+
   game.eventBus.on("*", async (event) => {
     updateGameUI();
+    gameLogPanel.addEvent(event);
+
+    if (event.type === "turn:start" && event.source) {
+      const turnNum = game.getState().turnNumber;
+      gameLogPanel.setTurn(turnNum);
+    }
 
     if (event.type === "card:played" && event.data) {
       const cardType = event.data.cardType as string | undefined;

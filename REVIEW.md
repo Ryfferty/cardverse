@@ -1257,6 +1257,23 @@
   6. 清理 19 个 `as any` 断言：heuristic.test.ts 13 个 → `GameEvent`，resources.test.ts 4 个 → `GameEvent | null` / `string | undefined`，engine.test.ts 2 个 → `Record<string, unknown> | undefined` / `EventTypeValue | undefined`
 - **结论**: ✅ 自审通过
 
+### 自审-TASK-034: 游戏日志面板
+- **日期**: 2026-05-19
+- **构建**: ✅ pnpm build 通过
+- **测试**: ✅ 636/636 通过
+- **Lint**: ✅ 0 issues
+- **自审清单**: ✅ 全部通过
+- **发现**: 无
+- **修复内容**:
+  1. 新增 `GameLogPanel` 组件：监听 `eventBus.on("*")` 记录所有事件
+  2. 日志面板显示在屏幕右侧，半透明背景
+  3. 日志格式化：「[回合3] 玩家A 对 玩家B 使用【杀】」
+  4. 自动滚动到最新（scrollTop = scrollHeight）
+  5. 最多保留 200 条日志
+  6. 区分事件类型样式：伤害红色、回血绿色、出牌蓝色、回合黄色、弃牌紫色、系统灰色
+  7. main.ts 集成：初始化面板、监听 turn:start 更新回合号
+- **结论**: ✅ 自审通过
+
 ### 自审-TASK-033: 弃牌选择机制完善
 - **日期**: 2026-05-19
 - **构建**: ✅ pnpm build 通过（8 packages）
