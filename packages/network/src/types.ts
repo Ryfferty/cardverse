@@ -38,5 +38,3 @@ export type NetworkStatus = "disconnected" | "connecting" | "connected" | "recon
 export type ConnectionHandler = (message: NetworkMessage, clientId?: string) => void;
 
 export type StatusHandler = (status: NetworkStatus) => void;
-
-export { RoomManager } from "./room.js";

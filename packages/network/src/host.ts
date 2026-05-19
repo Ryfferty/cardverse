@@ -1,5 +1,5 @@
-import { createServer } from "node:net";
-import type { Socket, Server } from "node:net";
+import { WebSocketServer, WebSocket } from "ws";
+import type { Game } from "@cardverse/core";
 import type { HostConfig, NetworkMessage, ConnectionHandler, NetworkStatus, StatusHandler } from "./types.js";
 import { RoomManager } from "./room.js";
 import { MessageCodec } from "./codec.js";
@@ -8,8 +8,9 @@ export class HostServer {
   readonly roomCode: string;
   readonly hostId: string;
   readonly port: number;
-  private server: Server;
-  private clients: Map<string, { socket: Socket; playerId: string; codec: MessageCodec }> = new Map();
+  private server: WebSocketServer | null = null;
+  private roomManager: RoomManager;
+  private clients: Map<string, { ws: WebSocket; playerId: string; codec: MessageCodec }> = new Map();
   private onMessage: ConnectionHandler | null = null;
   private onStatusChange: StatusHandler | null = null;
   private status: NetworkStatus = "disconnected";
@@ -17,13 +18,10 @@ export class HostServer {
   constructor(hostId: string, config: HostConfig) {
     this.hostId = hostId;
     this.port = config.port;
+    this.roomManager = new RoomManager();
 
-    const room = RoomManager.createRoom(hostId, config.maxPlayers, config.roomCode);
+    const room = this.roomManager.createRoom(hostId, config.maxPlayers, config.roomCode);
     this.roomCode = room.roomCode;
-
-    this.server = createServer((socket) => {
-      this.handleConnection(socket);
-    });
   }
 
   onConnection(handler: ConnectionHandler): void {
@@ -36,9 +34,15 @@ export class HostServer {
 
   async start(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.server.once("error", reject);
+      this.server = new WebSocketServer({ port: this.port });
 
-      this.server.listen(this.port, () => {
+      this.server.on("connection", (ws) => {
+        this.handleConnection(ws);
+      });
+
+      this.server.on("error", reject);
+
+      this.server.on("listening", () => {
         this.setStatus("connected");
         resolve();
       });
@@ -48,16 +52,39 @@ export class HostServer {
   async stop(): Promise<void> {
     return new Promise((resolve) => {
       for (const [clientId, client] of this.clients) {
-        client.socket.destroy();
+        client.ws.close();
       }
       this.clients.clear();
 
-      RoomManager.closeRoom(this.roomCode);
+      this.roomManager.closeRoom(this.roomCode);
 
-      this.server.close(() => {
+      if (this.server) {
+        this.server.close(() => {
+          this.setStatus("disconnected");
+          resolve();
+        });
+      } else {
         this.setStatus("disconnected");
         resolve();
-      });
+      }
+    });
+  }
+
+  syncGame(game: Game): void {
+    game.eventBus.on("*", (event) => {
+      const msg: NetworkMessage = {
+        type: "game_sync",
+        payload: {
+          eventType: event.type,
+          eventData: event.data,
+          eventId: event.id,
+          target: event.target,
+          source: event.source,
+          stackDepth: event.stackDepth,
+        },
+        timestamp: event.timestamp,
+      };
+      this.broadcast(msg);
     });
   }
 
@@ -65,7 +92,9 @@ export class HostServer {
     const encoded = MessageCodec.encode(message);
     for (const [clientId, client] of this.clients) {
       try {
-        client.socket.write(encoded);
+        if (client.ws.readyState === WebSocket.OPEN) {
+          client.ws.send(encoded);
+        }
       } catch {
         this.removeClient(clientId);
       }
@@ -77,7 +106,9 @@ export class HostServer {
     for (const [clientId, client] of this.clients) {
       if (client.playerId === playerId) {
         try {
-          client.socket.write(encoded);
+          if (client.ws.readyState === WebSocket.OPEN) {
+            client.ws.send(encoded);
+          }
         } catch {
           this.removeClient(clientId);
         }
@@ -105,21 +136,22 @@ export class HostServer {
     }
   }
 
-  private handleConnection(socket: Socket): void {
+  private handleConnection(ws: WebSocket): void {
     const clientId = `client_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const codec = new MessageCodec();
 
-    const client = { socket, playerId: "", codec };
+    const client = { ws, playerId: "", codec };
     this.clients.set(clientId, client);
 
-    socket.on("data", (data: Buffer) => {
-      const messages = codec.feed(data.toString("utf-8"));
+    ws.on("message", (data: Buffer | string) => {
+      const text = typeof data === "string" ? data : data.toString("utf-8");
+      const messages = codec.feed(text);
 
       for (const msg of messages) {
         const msgWithSender = { ...msg, senderId: clientId };
 
         if (msg.type === "join_request") {
-          this.handleJoinRequest(clientId, socket, msg);
+          this.handleJoinRequest(clientId, ws, msg);
           continue;
         }
 
@@ -129,12 +161,12 @@ export class HostServer {
       }
     });
 
-    socket.on("close", () => {
+    ws.on("close", () => {
       const playerId = this.clients.get(clientId)?.playerId;
       this.clients.delete(clientId);
 
       if (playerId) {
-        RoomManager.removePlayer(this.roomCode, playerId);
+        this.roomManager.removePlayer(this.roomCode, playerId);
 
         const leaveMsg: NetworkMessage = {
           type: "player_left",
@@ -150,12 +182,12 @@ export class HostServer {
       }
     });
 
-    socket.on("error", () => {
+    ws.on("error", () => {
       this.removeClient(clientId);
     });
   }
 
-  private handleJoinRequest(clientId: string, socket: Socket, msg: NetworkMessage): void {
+  private handleJoinRequest(clientId: string, ws: WebSocket, msg: NetworkMessage): void {
     const playerId = (msg.payload.playerId as string) || clientId;
     const playerName = (msg.payload.playerName as string) || playerId;
     const requestRoomCode = (msg.payload.roomCode as string) || this.roomCode;
@@ -168,21 +200,21 @@ export class HostServer {
         payload: { reason: "房间码不匹配" },
         timestamp: Date.now(),
       };
-      socket.write(MessageCodec.encode(response));
-      socket.destroy();
+      ws.send(MessageCodec.encode(response));
+      ws.close();
       return;
     }
 
     try {
-      RoomManager.addPlayer(this.roomCode, playerId, playerName);
+      this.roomManager.addPlayer(this.roomCode, playerId, playerName);
     } catch (err) {
       response = {
         type: "join_rejected",
         payload: { reason: err instanceof Error ? err.message : "加入失败" },
         timestamp: Date.now(),
       };
-      socket.write(MessageCodec.encode(response));
-      socket.destroy();
+      ws.send(MessageCodec.encode(response));
+      ws.close();
       return;
     }
 
@@ -196,11 +228,11 @@ export class HostServer {
       payload: {
         roomCode: this.roomCode,
         hostId: this.hostId,
-        players: RoomManager.getRoom(this.roomCode)?.players ?? [],
+        players: this.roomManager.getRoom(this.roomCode)?.players ?? [],
       },
       timestamp: Date.now(),
     };
-    socket.write(MessageCodec.encode(response));
+    ws.send(MessageCodec.encode(response));
 
     const joinMsg: NetworkMessage = {
       type: "player_joined",
@@ -218,10 +250,10 @@ export class HostServer {
     const client = this.clients.get(clientId);
     if (!client) return;
 
-    client.socket.destroy();
+    client.ws.close();
 
     if (client.playerId) {
-      RoomManager.setPlayerConnected(this.roomCode, client.playerId, false);
+      this.roomManager.setPlayerConnected(this.roomCode, client.playerId, false);
     }
 
     this.clients.delete(clientId);

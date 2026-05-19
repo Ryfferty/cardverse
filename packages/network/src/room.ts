@@ -1,9 +1,9 @@
 import type { RoomInfo, RoomPlayer } from "./types.js";
 
 export class RoomManager {
-  private static rooms: Map<string, RoomInfo> = new Map();
+  private rooms: Map<string, RoomInfo> = new Map();
 
-  static generateRoomCode(): string {
+  generateRoomCode(): string {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     let code = "";
     for (let i = 0; i < 4; i++) {
@@ -15,7 +15,7 @@ export class RoomManager {
     return code;
   }
 
-  static createRoom(hostId: string, maxPlayers: number, roomCode?: string): RoomInfo {
+  createRoom(hostId: string, maxPlayers: number, roomCode?: string): RoomInfo {
     const code = roomCode ?? this.generateRoomCode();
     if (this.rooms.has(code)) {
       throw new Error(`房间 ${code} 已存在`);
@@ -41,11 +41,11 @@ export class RoomManager {
     return room;
   }
 
-  static getRoom(roomCode: string): RoomInfo | undefined {
+  getRoom(roomCode: string): RoomInfo | undefined {
     return this.rooms.get(roomCode);
   }
 
-  static addPlayer(roomCode: string, playerId: string, name: string): RoomPlayer {
+  addPlayer(roomCode: string, playerId: string, name: string): RoomPlayer {
     const room = this.rooms.get(roomCode);
     if (!room) {
       throw new Error(`房间 ${roomCode} 不存在`);
@@ -72,7 +72,7 @@ export class RoomManager {
     return player;
   }
 
-  static removePlayer(roomCode: string, playerId: string): void {
+  removePlayer(roomCode: string, playerId: string): void {
     const room = this.rooms.get(roomCode);
     if (!room) return;
 
@@ -84,7 +84,7 @@ export class RoomManager {
     }
   }
 
-  static setPlayerConnected(roomCode: string, playerId: string, connected: boolean): void {
+  setPlayerConnected(roomCode: string, playerId: string, connected: boolean): void {
     const room = this.rooms.get(roomCode);
     if (!room) return;
 
@@ -94,22 +94,22 @@ export class RoomManager {
     }
   }
 
-  static setGameStarted(roomCode: string, started: boolean): void {
+  setGameStarted(roomCode: string, started: boolean): void {
     const room = this.rooms.get(roomCode);
     if (room) {
       room.gameStarted = started;
     }
   }
 
-  static closeRoom(roomCode: string): void {
+  closeRoom(roomCode: string): void {
     this.rooms.delete(roomCode);
   }
 
-  static listRooms(): RoomInfo[] {
+  listRooms(): RoomInfo[] {
     return Array.from(this.rooms.values());
   }
 
-  static reset(): void {
+  reset(): void {
     this.rooms.clear();
   }
 }

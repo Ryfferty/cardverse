@@ -1,19 +1,18 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
+import WS from "ws";
 import { HostServer } from "./host.js";
 import { ClientConnection } from "./client.js";
 import { RoomManager } from "./room.js";
 import { MessageCodec } from "./codec.js";
 import type { NetworkMessage } from "./types.js";
 
+(globalThis as Record<string, unknown>).WebSocket = WS;
+
 const TEST_PORT = 19500;
 
 function getPort(): number {
   return TEST_PORT + Math.floor(Math.random() * 1000);
 }
-
-beforeEach(() => {
-  RoomManager.reset();
-});
 
 describe("MessageCodec", () => {
   it("should encode and decode a single message", () => {
@@ -92,8 +91,14 @@ describe("MessageCodec", () => {
 });
 
 describe("RoomManager", () => {
+  let roomManager: RoomManager;
+
+  beforeEach(() => {
+    roomManager = new RoomManager();
+  });
+
   it("should create a room with generated code", () => {
-    const room = RoomManager.createRoom("player_1", 4);
+    const room = roomManager.createRoom("player_1", 4);
     expect(room.roomCode).toMatch(/^[A-Z2-9]{4}$/);
     expect(room.hostId).toBe("player_1");
     expect(room.maxPlayers).toBe(4);
@@ -102,62 +107,62 @@ describe("RoomManager", () => {
   });
 
   it("should create a room with specified code", () => {
-    const room = RoomManager.createRoom("player_1", 4, "ABCD");
+    const room = roomManager.createRoom("player_1", 4, "ABCD");
     expect(room.roomCode).toBe("ABCD");
   });
 
   it("should reject duplicate room codes", () => {
-    RoomManager.createRoom("player_1", 4, "DUP1");
-    expect(() => RoomManager.createRoom("player_2", 4, "DUP1")).toThrow();
+    roomManager.createRoom("player_1", 4, "DUP1");
+    expect(() => roomManager.createRoom("player_2", 4, "DUP1")).toThrow();
   });
 
   it("should add and remove players", () => {
-    RoomManager.createRoom("host", 4, "TEST");
-    const player = RoomManager.addPlayer("TEST", "player_2", "Alice");
+    roomManager.createRoom("host", 4, "TEST");
+    const player = roomManager.addPlayer("TEST", "player_2", "Alice");
     expect(player.playerId).toBe("player_2");
     expect(player.name).toBe("Alice");
 
-    const room = RoomManager.getRoom("TEST");
+    const room = roomManager.getRoom("TEST");
     expect(room?.playerCount).toBe(2);
 
-    RoomManager.removePlayer("TEST", "player_2");
-    expect(RoomManager.getRoom("TEST")?.playerCount).toBe(1);
+    roomManager.removePlayer("TEST", "player_2");
+    expect(roomManager.getRoom("TEST")?.playerCount).toBe(1);
   });
 
   it("should reject joining a full room", () => {
-    RoomManager.createRoom("host", 2, "FULL");
-    RoomManager.addPlayer("FULL", "player_2", "Bob");
-    expect(() => RoomManager.addPlayer("FULL", "player_3", "Charlie")).toThrow("已满");
+    roomManager.createRoom("host", 2, "FULL");
+    roomManager.addPlayer("FULL", "player_2", "Bob");
+    expect(() => roomManager.addPlayer("FULL", "player_3", "Charlie")).toThrow("已满");
   });
 
   it("should reject joining a started game", () => {
-    RoomManager.createRoom("host", 4, "GAME");
-    RoomManager.setGameStarted("GAME", true);
-    expect(() => RoomManager.addPlayer("GAME", "player_2", "Bob")).toThrow("已开始");
+    roomManager.createRoom("host", 4, "GAME");
+    roomManager.setGameStarted("GAME", true);
+    expect(() => roomManager.addPlayer("GAME", "player_2", "Bob")).toThrow("已开始");
   });
 
   it("should reject duplicate players", () => {
-    RoomManager.createRoom("host", 4, "DUPE");
-    RoomManager.addPlayer("DUPE", "player_2", "Bob");
-    expect(() => RoomManager.addPlayer("DUPE", "player_2", "Bob")).toThrow("已在房间中");
+    roomManager.createRoom("host", 4, "DUPE");
+    roomManager.addPlayer("DUPE", "player_2", "Bob");
+    expect(() => roomManager.addPlayer("DUPE", "player_2", "Bob")).toThrow("已在房间中");
   });
 
   it("should close room when all players leave", () => {
-    RoomManager.createRoom("host", 4, "GONE");
-    RoomManager.removePlayer("GONE", "host");
-    expect(RoomManager.getRoom("GONE")).toBeUndefined();
+    roomManager.createRoom("host", 4, "GONE");
+    roomManager.removePlayer("GONE", "host");
+    expect(roomManager.getRoom("GONE")).toBeUndefined();
   });
 
   it("should list all rooms", () => {
-    RoomManager.createRoom("h1", 4, "R1");
-    RoomManager.createRoom("h2", 4, "R2");
-    expect(RoomManager.listRooms()).toHaveLength(2);
+    roomManager.createRoom("h1", 4, "R1");
+    roomManager.createRoom("h2", 4, "R2");
+    expect(roomManager.listRooms()).toHaveLength(2);
   });
 
   it("should set player connected status", () => {
-    RoomManager.createRoom("host", 4, "STAT");
-    RoomManager.setPlayerConnected("STAT", "host", false);
-    const room = RoomManager.getRoom("STAT");
+    roomManager.createRoom("host", 4, "STAT");
+    roomManager.setPlayerConnected("STAT", "host", false);
+    const room = roomManager.getRoom("STAT");
     expect(room?.players[0].connected).toBe(false);
   });
 });
@@ -282,6 +287,48 @@ describe("HostServer and ClientConnection", () => {
 
     await host.stop();
   }, 10000);
+
+  it("should sync game events via syncGame", async () => {
+    const port = getPort();
+    const host = new HostServer("host_1", { port, maxPlayers: 4, roomCode: "SYNCG" });
+    await host.start();
+
+    const clientMsgs: NetworkMessage[] = [];
+    const client = new ClientConnection("player_2", {
+      host: "127.0.0.1",
+      port,
+      playerName: "Player 2",
+    });
+    client.onConnection((msg) => {
+      clientMsgs.push(msg);
+    });
+    await client.connect("SYNCG");
+
+    const { Game } = await import("@cardverse/core");
+    const game = Game.create({
+      deckId: "test_deck",
+      playerCount: 4,
+    });
+    game.addPlayer("host_1", "Host");
+    game.addPlayer("player_2", "Player 2");
+    await game.start();
+
+    host.syncGame(game);
+
+    await game.playCard("host_1", "sha_1", ["player_2"]);
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    const syncMsgs = clientMsgs.filter((m) => m.type === "game_sync");
+    expect(syncMsgs.length).toBeGreaterThanOrEqual(1);
+
+    const cardPlayed = syncMsgs.find((m) => (m.payload.eventType as string) === "card:played");
+    expect(cardPlayed).toBeDefined();
+    expect((cardPlayed!.payload.eventData as Record<string, unknown>).playerId).toBe("host_1");
+
+    client.disconnect();
+    await host.stop();
+  }, 15000);
 });
 
 describe("HostServer.broadcast ordering", () => {
