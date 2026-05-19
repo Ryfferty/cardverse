@@ -1,8 +1,10 @@
 import { GameUI } from "./GameUI.js";
 import type { CardData } from "./CardView.js";
+import type { HandCard } from "@cardverse/ai";
+import { HeuristicAI } from "@cardverse/ai";
 import { DeckLoader } from "@cardverse/deck";
 import { Game } from "@cardverse/core";
-import type { ZoneDefinition, PhaseDefinition, ResourceDefinition } from "@cardverse/shared";
+import type { ZoneDefinition, PhaseDefinition, ResourceDefinition, PlayerId, CardInstanceId } from "@cardverse/shared";
 
 interface DeckCard {
   id: string;
@@ -10,18 +12,9 @@ interface DeckCard {
   category: string;
 }
 
-interface DeckCharacter {
-  id: string;
-  name: string;
-  hp: number;
-  maxHp: number;
-  skills: Array<{ id: string; name: string }>;
-}
-
 async function loadDeckData(): Promise<{
   deckJson: Record<string, unknown>;
   allCards: DeckCard[];
-  characters: DeckCharacter[];
 }> {
   const [manifest, rules, basic, trick, equipment, characters] = await Promise.all([
     fetch("/sanguosha/manifest.json").then((r) => r.json()),
@@ -53,14 +46,10 @@ async function loadDeckData(): Promise<{
       drawConditions: manifest.drawConditions,
     },
     allCards,
-    characters: characters.characters as DeckCharacter[],
   };
 }
 
-function buildHandCards(
-  allCards: DeckCard[],
-  instanceIds: string[]
-): CardData[] {
+function buildHandCards(allCards: DeckCard[], instanceIds: string[]): CardData[] {
   return instanceIds.map((iid) => {
     const parts = iid.split("_");
     const defId = parts.length >= 2 ? parts[1] : iid;
@@ -68,6 +57,21 @@ function buildHandCards(
     const category = card?.category ?? "basic";
     return {
       id: iid,
+      name: card?.name ?? defId,
+      category,
+      type: category === "basic" ? defId : category === "equipment" ? "equipment" : "trick",
+    };
+  });
+}
+
+function buildAIHandCards(allCards: DeckCard[], instanceIds: string[]): HandCard[] {
+  return instanceIds.map((iid) => {
+    const parts = iid.split("_");
+    const defId = parts.length >= 2 ? parts[1] : iid;
+    const card = allCards.find((c) => c.id === defId);
+    const category = card?.category ?? "basic";
+    return {
+      instanceId: iid,
       name: card?.name ?? defId,
       category,
       type: category === "basic" ? defId : category === "equipment" ? "equipment" : "trick",
@@ -83,7 +87,6 @@ async function main(): Promise<void> {
   }
 
   const { deckJson, allCards } = await loadDeckData();
-
   const loader = new DeckLoader();
   const deck = loader.loadFromJson(deckJson);
 
@@ -95,16 +98,15 @@ async function main(): Promise<void> {
 
   game.initZones(zones);
   game.initResources(resources);
+  game.setCardDefinitions(deck.cards);
 
-  const playerNames = ["主公", "忠臣", "反贼", "内奸"];
-  const players: string[] = [];
+  const playerNames = ["主公（你）", "忠臣（AI）", "反贼（AI）", "内奸（AI）"];
+  const players: PlayerId[] = [];
 
   for (let i = 0; i < 4; i++) {
     const pid = `player_${i}`;
     players.push(pid);
-
-    const player = game.addPlayer(pid, playerNames[i]);
-    player.faction = ["shu", "wei", "wu", "qun"][i];
+    game.addPlayer(pid, playerNames[i]);
 
     game.initPlayerZones(pid, zones.filter((z) => z.owner === "player"));
 
@@ -124,7 +126,7 @@ async function main(): Promise<void> {
   const discardZone = zones.find((z) => z.id === "discard");
 
   if (deckZone) {
-    const allInstanceIds = (deck.instances ?? []).map((inst) => inst.instanceId);
+    const allInstanceIds = (deck.instances ?? []).map((inst: { instanceId: string }) => inst.instanceId);
     game.state.setGlobalZone("deck", {
       definition: deckZone,
       cards: allInstanceIds,
@@ -144,6 +146,7 @@ async function main(): Promise<void> {
 
   game.initPhases(phases);
   await game.start();
+  game.assignRoles();
 
   const ui = new GameUI();
   await ui.init(appRoot, {
@@ -155,24 +158,21 @@ async function main(): Promise<void> {
     maxHealth: 4,
   });
 
-  ui.setInteractionCallback((action, cardIds) => {
-    if (action === "play" && cardIds.length > 0) {
-      const currentPlayerId = game.getState().currentTurn?.playerId ?? players[0];
-      game.playCard(currentPlayerId, cardIds[0], []).catch((e) => {
-        console.error("Play card failed:", e);
-      });
-    }
+  const aiPlayers = new Map<PlayerId, HeuristicAI>();
+  for (let i = 1; i < 4; i++) {
+    aiPlayers.set(players[i], new HeuristicAI(`AI_${playerNames[i]}`));
+  }
 
-    if (action === "endTurn") {
-      game.endTurn().catch((e) => {
-        console.error("End turn failed:", e);
-      });
-    }
-  });
+  let isHumanTurn = true;
+  let runningAI = false;
 
-  function updateGameState(): void {
+  function getHumanPlayerId(): PlayerId {
+    return players[0];
+  }
+
+  function updateGameUI(): void {
     const state = game.getState();
-    const pid = players[0];
+    const pid = getHumanPlayerId();
 
     const handZone = state.players.get(pid)?.zones.get("hand");
     const handCardIds = handZone?.cards ?? [];
@@ -194,8 +194,276 @@ async function main(): Promise<void> {
     });
   }
 
+  function getAlivePlayers(): PlayerId[] {
+    const state = game.getState();
+    return Array.from(state.players.values())
+      .filter((p) => p.status === "alive")
+      .map((p) => p.id);
+  }
+
+  async function getPlayerRole(pid: PlayerId): Promise<string> {
+    const role = game.getPlayerRole(pid);
+    if (role === "lord" || role === "loyalist") return "shu";
+    if (role === "rebel") return "wei";
+    return "qun";
+  }
+
+  async function buildAIGameView(aiPlayerId: PlayerId, isHuman: boolean): Promise<{
+    players: Array<{
+      playerId: string;
+      handCardIds: string[];
+      handCount: number;
+      health: number;
+      maxHealth: number;
+      faction: string;
+      alive: boolean;
+      seatIndex: number;
+    }>;
+    selfId: string;
+    turnNumber: number;
+    currentPhase: string;
+    currentTurnPlayerId: string;
+    pendingEvents: Array<unknown>;
+    playerCount: number;
+  }> {
+    const state = game.getState();
+    const alivePlayers = getAlivePlayers();
+    const playerCount = state.players.size;
+
+    const viewPlayers = alivePlayers.map((pid, idx) => {
+      const p = state.players.get(pid)!;
+      const handZone = p.zones.get("hand");
+
+      let faction = "";
+      if (pid === aiPlayerId) {
+        faction = "self";
+      } else if (isHuman && pid === getHumanPlayerId()) {
+        faction = "human";
+      } else {
+        const role = game.getPlayerRole(pid);
+        const aiRole = game.getPlayerRole(aiPlayerId);
+        if (role === aiRole) {
+          faction = "shu";
+        } else if (
+          (role === "lord" || role === "loyalist") &&
+          (aiRole === "lord" || aiRole === "loyalist")
+        ) {
+          faction = "shu";
+        } else if (
+          role === "lord" &&
+          aiRole === "loyalist"
+        ) {
+          faction = "shu";
+        } else {
+          faction = "wei";
+        }
+      }
+
+      return {
+        playerId: p.id,
+        handCardIds: handZone?.cards ?? [],
+        handCount: p.handCount,
+        health: game.resources.getValue(p.id, "health") ?? 0,
+        maxHealth: game.resources.getValue(p.id, "maxHealth") ?? 4,
+        faction,
+        alive: p.status === "alive",
+        seatIndex: game.getPlayerSeatIndex(pid),
+      };
+    });
+
+    const phaseIndex = state.currentTurn?.phaseIndex ?? 0;
+    const currentPhaseId = phases[phaseIndex % phases.length]?.id ?? "play";
+
+    return {
+      players: viewPlayers,
+      selfId: aiPlayerId,
+      turnNumber: state.turnNumber,
+      currentPhase: currentPhaseId,
+      currentTurnPlayerId: state.currentTurn?.playerId ?? "",
+      pendingEvents: [],
+      playerCount,
+    };
+  }
+
+  function getAiHandCards(pid: PlayerId): CardInstanceId[] {
+    const state = game.getState();
+    const handZone = state.players.get(pid)?.zones.get("hand");
+    return handZone?.cards ?? [];
+  }
+
+  function removeCardFromHand(pid: PlayerId, cardId: CardInstanceId): void {
+    const state = game.getState();
+    const handZone = state.players.get(pid)?.zones.get("hand");
+    if (!handZone) return;
+
+    const newCards = handZone.cards.filter((c) => c !== cardId);
+    game.state.setPlayerZone(pid, "hand", {
+      definition: handZone.definition,
+      cards: newCards,
+      playerId: pid,
+    });
+
+    const discardZone = state.globalZones.get("discard");
+    if (discardZone) {
+      game.state.setGlobalZone("discard", {
+        definition: discardZone.definition,
+        cards: [...discardZone.cards, cardId],
+      });
+    }
+
+    game.state.updatePlayerHandCount(pid);
+  }
+
+  function applyDamage(pid: PlayerId, amount: number): void {
+    const current = game.resources.getValue(pid, "health") ?? 0;
+    game.resources.set(pid, "health", Math.max(0, current - amount));
+  }
+
+  async function runAITurn(aiPlayerId: PlayerId): Promise<void> {
+    runningAI = true;
+    const ai = aiPlayers.get(aiPlayerId)!;
+
+    try {
+      const currentPlayerId = game.getState().currentTurn?.playerId;
+      if (currentPlayerId !== aiPlayerId) return;
+
+      await game.startTurn(aiPlayerId);
+
+      while (!game.phases.isTurnComplete()) {
+        const phase = game.phases.getCurrentPhase();
+        const phaseId = phase?.id ?? "";
+
+        if (phase && !phase.auto) {
+          const gameView = await buildAIGameView(aiPlayerId, false);
+          const handCardIds = getAiHandCards(aiPlayerId);
+          ai.setHandCards(buildAIHandCards(allCards, handCardIds));
+
+          let actions = 0;
+          const maxActions = 20;
+
+          while (actions < maxActions) {
+            const action = await ai.decideAction(gameView);
+
+            if (action.type === "endTurn" || action.type === "pass") break;
+
+            if (action.type === "playCard" && action.cardId) {
+              removeCardFromHand(aiPlayerId, action.cardId);
+              try {
+                await game.playCard(aiPlayerId, action.cardId, action.targets);
+              } catch {
+                // Out of range or invalid, skip
+              }
+            }
+
+            if (action.type === "respond" && action.data) {
+              const discardAll = (action.data as Record<string, unknown>).discardAll as string[] | undefined;
+              if (discardAll) {
+                for (const cardId of discardAll) {
+                  removeCardFromHand(aiPlayerId, cardId);
+                }
+              }
+              break;
+            }
+
+            const newHandCards = getAiHandCards(aiPlayerId);
+            ai.setHandCards(buildAIHandCards(allCards, newHandCards));
+            actions++;
+          }
+        }
+
+        await game.nextPhase();
+      }
+
+      await game.endTurn();
+    } finally {
+      runningAI = false;
+    }
+  }
+
+  async function startNextTurnIfAI(): Promise<void> {
+    if (runningAI) return;
+
+    const alivePlayers = getAlivePlayers();
+    if (alivePlayers.length <= 1) return;
+
+    const currentTurnPlayer = game.getState().currentTurn?.playerId;
+    if (!currentTurnPlayer || !alivePlayers.includes(currentTurnPlayer)) {
+      return;
+    }
+
+    if (currentTurnPlayer === getHumanPlayerId()) {
+      isHumanTurn = true;
+      updateGameUI();
+      return;
+    }
+
+    isHumanTurn = false;
+    updateGameUI();
+    ui.clearSelection();
+
+    await runAITurn(currentTurnPlayer);
+    updateGameUI();
+
+    setTimeout(() => {
+      startNextTurnIfAI().catch(console.error);
+    }, 500);
+  }
+
+  ui.setInteractionCallback((action, cardIds) => {
+    if (!isHumanTurn) return;
+
+    if (action === "play" && cardIds.length > 0) {
+      const humanPid = getHumanPlayerId();
+      const currentPlayerId = game.getState().currentTurn?.playerId;
+      if (currentPlayerId !== humanPid) return;
+
+      const alivePlayers = getAlivePlayers();
+      const targets = alivePlayers.filter((p) => p !== humanPid).slice(0, 1);
+
+      // Remove card from hand first
+      const state = game.getState();
+      const handZone = state.players.get(humanPid)?.zones.get("hand");
+      if (handZone) {
+        const newCards = handZone.cards.filter((c) => c !== cardIds[0]);
+        game.state.setPlayerZone(humanPid, "hand", {
+          definition: handZone.definition,
+          cards: newCards,
+          playerId: humanPid,
+        });
+        const discardZone = state.globalZones.get("discard");
+        if (discardZone) {
+          game.state.setGlobalZone("discard", {
+            definition: discardZone.definition,
+            cards: [...discardZone.cards, cardIds[0]],
+          });
+        }
+        game.state.updatePlayerHandCount(humanPid);
+      }
+
+      game.playCard(humanPid, cardIds[0], targets).catch((e) => {
+        console.error("Play card failed:", e);
+      });
+
+      updateGameUI();
+    }
+
+    if (action === "endTurn") {
+      const humanPid = getHumanPlayerId();
+      const currentPlayerId = game.getState().currentTurn?.playerId;
+      if (currentPlayerId !== humanPid) return;
+
+      game.endTurn().then(() => {
+        isHumanTurn = false;
+        updateGameUI();
+        startNextTurnIfAI().catch(console.error);
+      }).catch((e) => {
+        console.error("End turn failed:", e);
+      });
+    }
+  });
+
   game.eventBus.on("*", () => {
-    updateGameState();
+    updateGameUI();
   });
 
   const actionBtn = document.createElement("div");
@@ -228,7 +496,7 @@ async function main(): Promise<void> {
     actionBtn.appendChild(btn);
   }
 
-  addButton("出杀", "#cc4444", () => {
+  addButton("出牌", "#cc4444", () => {
     const selected = ui.getSelectedCardIds();
     if (selected.length > 0) {
       ui.notifyAction("play", selected);
@@ -247,9 +515,38 @@ async function main(): Promise<void> {
     game.nextPhase().catch((e) => {
       console.error("Next phase failed:", e);
     });
+    updateGameUI();
   });
 
-  updateGameState();
+  // Initial deal: give each player 4 cards
+  const deckRef = game.getState().globalZones.get("deck");
+  if (deckRef && deckRef.cards.length >= 16) {
+    for (const pid of players) {
+      const drawn = deckRef.cards.splice(0, 4);
+      const handZone = game.getState().players.get(pid)?.zones.get("hand");
+      if (handZone) {
+        game.state.setPlayerZone(pid, "hand", {
+          definition: handZone.definition,
+          cards: [...handZone.cards, ...drawn],
+          playerId: pid,
+        });
+      }
+      game.state.updatePlayerHandCount(pid);
+    }
+  }
+
+  updateGameUI();
+
+  // Start the first turn
+  setTimeout(() => {
+    const currentTurnPlayer = game.getState().currentTurn?.playerId;
+    if (currentTurnPlayer === getHumanPlayerId()) {
+      isHumanTurn = true;
+      updateGameUI();
+    } else {
+      startNextTurnIfAI().catch(console.error);
+    }
+  }, 1000);
 }
 
 main().catch((err) => {
