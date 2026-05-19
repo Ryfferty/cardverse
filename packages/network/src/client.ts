@@ -27,6 +27,7 @@ export class ClientConnection {
   private reconnectAttempts: number = 0;
   private maxReconnectAttempts: number = 5;
   private wsCtor: typeof WebSocket;
+  private lastReceivedSeq: number = 0;
 
   constructor(playerId: string, config: ClientConfig) {
     this.playerId = playerId;
@@ -91,6 +92,14 @@ export class ClientConnection {
             if (userHandler) {
               userHandler(msg);
             }
+            if (msg.type === "join_accepted" && this.lastReceivedSeq > 0) {
+              const ackMsg: NetworkMessage = {
+                type: "ack",
+                payload: { lastSeq: this.lastReceivedSeq },
+                timestamp: Date.now(),
+              };
+              this.send(ackMsg);
+            }
           }
         };
 
@@ -102,6 +111,20 @@ export class ClientConnection {
         const data = typeof event.data === "string" ? event.data : "";
         const messages = this.codec.feed(data);
         for (const msg of messages) {
+          if (msg.seq !== undefined && msg.seq > this.lastReceivedSeq) {
+            this.lastReceivedSeq = msg.seq;
+          }
+
+          if (msg.type === "ping") {
+            const pong: NetworkMessage = {
+              type: "pong",
+              payload: { serverTime: msg.payload.serverTime },
+              timestamp: Date.now(),
+            };
+            this.send(pong);
+            continue;
+          }
+
           if (this.onMessageHandler) {
             this.onMessageHandler(msg);
           }
@@ -160,6 +183,10 @@ export class ClientConnection {
 
   getStatus(): NetworkStatus {
     return this.status;
+  }
+
+  getLastReceivedSeq(): number {
+    return this.lastReceivedSeq;
   }
 
   private setStatus(status: NetworkStatus): void {

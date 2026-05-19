@@ -3,6 +3,16 @@ export interface NetworkMessage {
   payload: Record<string, unknown>;
   timestamp: number;
   senderId?: string;
+  seq?: number;
+}
+
+export interface AckMessage {
+  lastReceivedSeq: number;
+}
+
+export interface HeartbeatConfig {
+  interval: number;
+  timeout: number;
 }
 
 export interface RoomInfo {
@@ -25,6 +35,7 @@ export interface HostConfig {
   port: number;
   maxPlayers: number;
   roomCode?: string;
+  heartbeat?: HeartbeatConfig;
 }
 
 export interface ClientConfig {

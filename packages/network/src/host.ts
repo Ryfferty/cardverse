@@ -1,8 +1,13 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { Game } from "@cardverse/core";
-import type { HostConfig, NetworkMessage, ConnectionHandler, NetworkStatus, StatusHandler } from "./types.js";
+import type { HostConfig, NetworkMessage, ConnectionHandler, NetworkStatus, StatusHandler, HeartbeatConfig } from "./types.js";
 import { RoomManager } from "./room.js";
 import { MessageCodec } from "./codec.js";
+
+const DEFAULT_HEARTBEAT: HeartbeatConfig = {
+  interval: 15000,
+  timeout: 30000,
+};
 
 export class HostServer {
   readonly roomCode: string;
@@ -10,15 +15,23 @@ export class HostServer {
   readonly port: number;
   private server: WebSocketServer | null = null;
   private roomManager: RoomManager;
-  private clients: Map<string, { ws: WebSocket; playerId: string; codec: MessageCodec }> = new Map();
+  private clients: Map<string, { ws: WebSocket; playerId: string; codec: MessageCodec; lastPong: number }> = new Map();
   private onMessage: ConnectionHandler | null = null;
   private onStatusChange: StatusHandler | null = null;
   private status: NetworkStatus = "disconnected";
+  private eventSeq: number = 0;
+  private eventHistory: NetworkMessage[] = [];
+  private maxHistorySize: number = 200;
+  private syncedGame: Game | null = null;
+  private syncHandler: ((event: Record<string, unknown>) => void) | null = null;
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private heartbeatConfig: HeartbeatConfig;
 
   constructor(hostId: string, config: HostConfig) {
     this.hostId = hostId;
     this.port = config.port;
     this.roomManager = new RoomManager();
+    this.heartbeatConfig = config.heartbeat ?? DEFAULT_HEARTBEAT;
 
     const room = this.roomManager.createRoom(hostId, config.maxPlayers, config.roomCode);
     this.roomCode = room.roomCode;
@@ -44,6 +57,7 @@ export class HostServer {
 
       this.server.on("listening", () => {
         this.setStatus("connected");
+        this.startHeartbeat();
         resolve();
       });
     });
@@ -51,10 +65,20 @@ export class HostServer {
 
   async stop(): Promise<void> {
     return new Promise((resolve) => {
+      this.stopHeartbeat();
+
+      if (this.syncedGame && this.syncHandler) {
+        this.syncedGame.eventBus.off("*", this.syncHandler);
+        this.syncedGame = null;
+        this.syncHandler = null;
+      }
+
       for (const [clientId, client] of this.clients) {
         client.ws.close();
       }
       this.clients.clear();
+      this.eventHistory.length = 0;
+      this.eventSeq = 0;
 
       this.roomManager.closeRoom(this.roomCode);
 
@@ -71,21 +95,28 @@ export class HostServer {
   }
 
   syncGame(game: Game): void {
-    game.eventBus.on("*", (event) => {
+    this.syncedGame = game;
+    this.syncHandler = (event: Record<string, unknown>): void => {
+      this.eventSeq++;
+      const seq = this.eventSeq;
       const msg: NetworkMessage = {
         type: "game_sync",
         payload: {
           eventType: event.type,
           eventData: event.data,
-          eventId: event.id,
-          target: event.target,
-          source: event.source,
-          stackDepth: event.stackDepth,
+          eventId: (event as Record<string, unknown>).id,
+          target: (event as Record<string, unknown>).target,
+          source: (event as Record<string, unknown>).source,
+          stackDepth: (event as Record<string, unknown>).stackDepth,
+          seq,
         },
-        timestamp: event.timestamp,
+        timestamp: (event as Record<string, unknown>).timestamp as number ?? Date.now(),
+        seq,
       };
+      this.addToHistory(msg);
       this.broadcast(msg);
-    });
+    };
+    game.eventBus.on("*", this.syncHandler);
   }
 
   broadcast(message: NetworkMessage): void {
@@ -129,6 +160,79 @@ export class HostServer {
     return this.status;
   }
 
+  handleAckMessage(clientId: string, lastReceivedSeq: number): void {
+    const missedEvents = this.eventHistory.filter((msg) => (msg.seq ?? 0) > lastReceivedSeq);
+    const client = this.clients.get(clientId);
+    if (!client || client.ws.readyState !== WebSocket.OPEN) return;
+
+    for (const msg of missedEvents) {
+      try {
+        client.ws.send(MessageCodec.encode(msg));
+      } catch {
+        this.removeClient(clientId);
+        return;
+      }
+    }
+  }
+
+  private startHeartbeat(): void {
+    this.heartbeatTimer = setInterval(() => {
+      this.checkHeartbeats();
+
+      const ping: NetworkMessage = {
+        type: "ping",
+        payload: { serverTime: Date.now() },
+        timestamp: Date.now(),
+      };
+      this.broadcastMessage(ping);
+    }, this.heartbeatConfig.interval);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+  }
+
+  private checkHeartbeats(): void {
+    const now = Date.now();
+    const timeout = this.heartbeatConfig.timeout;
+    for (const [clientId, client] of this.clients) {
+      if (now - client.lastPong > timeout) {
+        this.removeClient(clientId);
+      }
+    }
+  }
+
+  private broadcastMessage(message: NetworkMessage): void {
+    const encoded = MessageCodec.encode(message);
+    for (const [clientId, client] of this.clients) {
+      try {
+        if (client.ws.readyState === WebSocket.OPEN) {
+          client.ws.send(encoded);
+        }
+      } catch {
+        this.removeClient(clientId);
+      }
+    }
+  }
+
+  private addToHistory(message: NetworkMessage): void {
+    this.eventHistory.push(message);
+    while (this.eventHistory.length > this.maxHistorySize) {
+      this.eventHistory.shift();
+    }
+  }
+
+  getEventHistoryCount(): number {
+    return this.eventHistory.length;
+  }
+
+  getCurrentSeq(): number {
+    return this.eventSeq;
+  }
+
   private setStatus(status: NetworkStatus): void {
     this.status = status;
     if (this.onStatusChange) {
@@ -140,7 +244,7 @@ export class HostServer {
     const clientId = `client_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const codec = new MessageCodec();
 
-    const client = { ws, playerId: "", codec };
+    const client = { ws, playerId: "", codec, lastPong: Date.now() };
     this.clients.set(clientId, client);
 
     ws.on("message", (data: Buffer | string) => {
@@ -149,6 +253,22 @@ export class HostServer {
 
       for (const msg of messages) {
         const msgWithSender = { ...msg, senderId: clientId };
+
+        if (msg.type === "pong") {
+          const entry = this.clients.get(clientId);
+          if (entry) {
+            entry.lastPong = Date.now();
+          }
+          continue;
+        }
+
+        if (msg.type === "ack") {
+          const lastSeq = msg.payload.lastSeq as number | undefined;
+          if (typeof lastSeq === "number") {
+            this.handleAckMessage(clientId, lastSeq);
+          }
+          continue;
+        }
 
         if (msg.type === "join_request") {
           this.handleJoinRequest(clientId, ws, msg);
