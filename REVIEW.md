@@ -887,5 +887,22 @@
 
 ---
 
+## REVIEW-068/070/072/075 二次修复验证
+
+**构建**: ✅ 通过 | **测试**: ✅ 562/562 通过
+
+> commit 4099377 二次修复 4 项 ⚠️ 部分修复。
+
+| 审查 | 验证 | 说明 |
+|------|------|------|
+| 068 endTurn 竞态 | ✅ 正确修复 | `.then()` 移除，`turnNumber` 改为 `state.turnNumber` 从引擎读取，UI 完全由 eventBus `"*"` 触发 |
+| 070 类型继承 | ✅ 正确修复 | `CardEditorData extends Omit<CardDefinition, "description" \| "effects">`，`EffectContext` import 已移除 |
+| 072 校验接入 UI | ✅ 正确修复 | 新增 `formFieldWithValidation` 组件，ID 输入框实时校验格式+唯一性，红色边框+错误提示 |
+| 075 导出名称 | ✅ 正确修复 | 新增「卡组 ID」「卡组名称」输入框，`EditorState` 添加 `deckId`/`deckName`，导出时传入 `buildDeckExport()` |
+
+**结论**: 4 项全部正确修复。REVIEW-066~075 共 10 项现已全部 ✅。
+
+---
+
 *审查人: Hermes Agent | 日期: 2026-05-19*
     73|    73|
