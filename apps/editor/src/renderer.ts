@@ -1,4 +1,3 @@
-import type { CardEditorData, CharacterEditorData } from "./editor.js";
 import { cardToJSON, characterToJSON, buildDeckExport, downloadJSON, validateCardId, validateCharId } from "./editor.js";
 import type { EditorState } from "./state.js";
 import {
@@ -481,8 +480,8 @@ export function render(state: EditorState, elements: EditorElements): void {
 
   const saveIndicator = statusBar.querySelector("#save-indicator") as HTMLElement | null;
   if (saveIndicator) {
-    saveIndicator.textContent = `已保存 ${new Date().toLocaleTimeString()}`;
-    saveIndicator.style.color = "#3fb950";
+    saveIndicator.textContent = "编辑中…";
+    saveIndicator.style.color = "#8b949e";
   }
 
   const listPanel = state.activeTab === "cards" ? cardListEl : charListEl;

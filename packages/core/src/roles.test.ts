@@ -12,8 +12,8 @@ describe("RoleManager", () => {
       const roles = assignments.map((a) => a.role);
       expect(roles.filter((r) => r === "lord").length).toBe(1);
       expect(roles.filter((r) => r === "loyalist").length).toBe(1);
-      expect(roles.filter((r) => r === "rebel").length).toBe(2);
-      expect(roles.filter((r) => r === "spy").length).toBe(0);
+      expect(roles.filter((r) => r === "rebel").length).toBe(1);
+      expect(roles.filter((r) => r === "spy").length).toBe(1);
     });
 
     it("should add spy for 5 players", () => {

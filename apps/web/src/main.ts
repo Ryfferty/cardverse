@@ -102,7 +102,7 @@ async function main(): Promise<void> {
   game.initResources(resources);
   game.setCardDefinitions(deck.cards);
 
-  const playerNames = ["主公（你）", "忠臣（AI）", "反贼（AI）", "内奸（AI）"];
+  const playerNames = ["玩家", "AI-1", "AI-2", "AI-3"];
   const players: PlayerId[] = [];
 
   for (let i = 0; i < 4; i++) {
@@ -148,7 +148,26 @@ async function main(): Promise<void> {
 
   game.initPhases(phases);
   await game.start();
-  game.assignRoles();
+  const roleAssignments = game.assignRoles();
+
+  const roleNameMap: Record<string, string> = {
+    lord: "主公",
+    loyalist: "忠臣",
+    rebel: "反贼",
+    spy: "内奸",
+  };
+
+  for (const assignment of roleAssignments) {
+    const idx = parseInt(assignment.playerId.split("_")[1]);
+    if (!isNaN(idx)) {
+      const suffix = idx === 0 ? "（你）" : "（AI）";
+      playerNames[idx] = `${roleNameMap[assignment.role] ?? assignment.role}${suffix}`;
+      const player = game.getState().players.get(assignment.playerId);
+      if (player) {
+        player.name = playerNames[idx];
+      }
+    }
+  }
 
   const ui = new GameUI();
   await ui.init(appRoot, {
@@ -199,7 +218,7 @@ async function main(): Promise<void> {
     });
 
     const opponents: OpponentInfo[] = [];
-    const alivePlayers = getAlivePlayers();
+    const _alivePlayers = getAlivePlayers();
     const currentTurnPlayer = state.currentTurn?.playerId;
     for (const pid of players) {
       if (pid === getHumanPlayerId()) continue;
@@ -207,6 +226,14 @@ async function main(): Promise<void> {
       if (!p) continue;
       const hp = game.resources.getValue(pid, "health") ?? 0;
       const mhp = game.resources.getValue(pid, "maxHealth") ?? 4;
+      const equipCardIds = game.getEquipmentCards(pid);
+      const equipNames = equipCardIds.map((eid) => {
+        const parts = eid.split("_");
+        const defId = parts.length >= 2 ? parts[1] : eid;
+        const cardDef = allCards.find((c) => c.id === defId);
+        return cardDef?.name ?? defId;
+      });
+
       opponents.push({
         playerId: pid,
         name: playerNames[parseInt(pid.split("_")[1])] ?? pid,
@@ -215,6 +242,8 @@ async function main(): Promise<void> {
         handCount: getAiHandCards(pid).length,
         isCurrentTurn: pid === currentTurnPlayer,
         seatIndex: game.getPlayerSeatIndex(pid),
+        isAlive: p.status === "alive",
+        equipment: equipNames,
       });
     }
     opponentPanel.render(opponents);
@@ -227,7 +256,7 @@ async function main(): Promise<void> {
       .map((p) => p.id);
   }
 
-  async function getPlayerRole(pid: PlayerId): Promise<string> {
+  async function _getPlayerRole(pid: PlayerId): Promise<string> {
     const role = game.getPlayerRole(pid);
     if (role === "lord" || role === "loyalist") return "shu";
     if (role === "rebel") return "wei";
@@ -256,7 +285,7 @@ async function main(): Promise<void> {
     const alivePlayers = getAlivePlayers();
     const playerCount = state.players.size;
 
-    const viewPlayers = alivePlayers.map((pid, idx) => {
+    const viewPlayers = alivePlayers.map((pid, _idx) => {
       const p = state.players.get(pid)!;
       const handZone = p.zones.get("hand");
 
@@ -340,7 +369,7 @@ async function main(): Promise<void> {
     game.state.updatePlayerHandCount(pid);
   }
 
-  function applyDamage(pid: PlayerId, amount: number): void {
+  function _applyDamage(pid: PlayerId, amount: number): void {
     const current = game.resources.getValue(pid, "health") ?? 0;
     game.resources.set(pid, "health", Math.max(0, current - amount));
   }
@@ -357,7 +386,7 @@ async function main(): Promise<void> {
 
       while (!game.phases.isTurnComplete()) {
         const phase = game.phases.getCurrentPhase();
-        const phaseId = phase?.id ?? "";
+        const _phaseId = phase?.id ?? "";
 
         if (phase && !phase.auto) {
           const gameView = await buildAIGameView(aiPlayerId, false);
@@ -376,8 +405,8 @@ async function main(): Promise<void> {
               removeCardFromHand(aiPlayerId, action.cardId);
               try {
                 await game.playCard(aiPlayerId, action.cardId, action.targets);
-              } catch {
-                // Out of range or invalid, skip
+              } catch (e) {
+                console.warn("AI playCard failed:", e instanceof Error ? e.message : String(e));
               }
             }
 
@@ -514,8 +543,16 @@ async function main(): Promise<void> {
 
           if (result && result.choice === "play" && result.cardId) {
             removeCardFromHand(humanPid, result.cardId);
+            await game.respondToEvent(event.id, {
+              playerId: humanPid,
+              action: "play",
+              cardId: result.cardId,
+            });
           } else {
-            applyDamage(humanPid, 1);
+            await game.respondToEvent(event.id, {
+              playerId: humanPid,
+              action: "pass",
+            });
           }
           updateGameUI();
         }
@@ -529,12 +566,26 @@ async function main(): Promise<void> {
           .filter((c) => c.type === "shan" || c.id.includes("_shan_"));
 
         const dialog = new ResponseDialog();
-        await dialog.prompt({
+        const result = await dialog.prompt({
           title: "万箭齐发！",
           message: `${event.source} 使用了万箭齐发，是否打出【闪】？`,
           availableCards: shanCards,
           timeout: 30000,
         });
+
+        if (result && result.choice === "play" && result.cardId) {
+          removeCardFromHand(humanPid, result.cardId);
+          await game.respondToEvent(event.id, {
+            playerId: humanPid,
+            action: "play",
+            cardId: result.cardId,
+          });
+        } else {
+          await game.respondToEvent(event.id, {
+            playerId: humanPid,
+            action: "pass",
+          });
+        }
         updateGameUI();
       }
 
@@ -546,12 +597,57 @@ async function main(): Promise<void> {
           .filter((c) => c.type === "sha" || c.id.includes("_sha_"));
 
         const dialog = new ResponseDialog();
-        await dialog.prompt({
+        const result = await dialog.prompt({
           title: "南蛮入侵！",
           message: `${event.source} 使用了南蛮入侵，是否打出【杀】？`,
           availableCards: shaCards,
           timeout: 30000,
         });
+
+        if (result && result.choice === "play" && result.cardId) {
+          removeCardFromHand(humanPid, result.cardId);
+          await game.respondToEvent(event.id, {
+            playerId: humanPid,
+            action: "play",
+            cardId: result.cardId,
+          });
+        } else {
+          await game.respondToEvent(event.id, {
+            playerId: humanPid,
+            action: "pass",
+          });
+        }
+        updateGameUI();
+      }
+
+      if (cardType === "juedou") {
+        await new Promise((r) => setTimeout(r, 300));
+
+        const handCardIds = getAiHandCards(humanPid);
+        const shaCards = buildHandCards(allCards, handCardIds)
+          .filter((c) => c.type === "sha" || c.id.includes("_sha_"));
+
+        const dialog = new ResponseDialog();
+        const result = await dialog.prompt({
+          title: "决斗！",
+          message: `${event.source} 对你使用了【决斗】，是否打出【杀】？`,
+          availableCards: shaCards,
+          timeout: 30000,
+        });
+
+        if (result && result.choice === "play" && result.cardId) {
+          removeCardFromHand(humanPid, result.cardId);
+          await game.respondToEvent(event.id, {
+            playerId: humanPid,
+            action: "play",
+            cardId: result.cardId,
+          });
+        } else {
+          await game.respondToEvent(event.id, {
+            playerId: humanPid,
+            action: "pass",
+          });
+        }
         updateGameUI();
       }
     }

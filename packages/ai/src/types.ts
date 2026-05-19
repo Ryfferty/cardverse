@@ -5,6 +5,7 @@ export interface HandCard {
   type: string;
   category: string;
   name: string;
+  tags?: string[];
 }
 
 export interface AIPlayerInfo {
@@ -29,7 +30,7 @@ export interface AIGameView {
 }
 
 export interface AIAction {
-  type: "playCard" | "respond" | "pass" | "endTurn";
+  type: "playCard" | "respond" | "discard" | "pass" | "endTurn";
   cardId?: CardInstanceId;
   targets?: PlayerId[];
   response?: EventResponse;

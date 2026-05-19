@@ -3,7 +3,6 @@ import {
   EffectExecutor,
   createEffectExecutor,
   type ExecutorDependencies,
-  type EffectExecutionResult,
 } from "./effectExecutor.js";
 import { EventType } from "@cardverse/shared";
 import type { EffectDefinition } from "@cardverse/deck";
@@ -427,7 +426,7 @@ describe("EffectExecutor", () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.data!.result).toBe("process_accessible");
+      expect(result.data!.result).toBe("no_process");
     });
 
     it("scripts run in isolated function scopes", async () => {

@@ -6,6 +6,8 @@ export interface OpponentInfo {
   handCount: number;
   isCurrentTurn: boolean;
   seatIndex: number;
+  isAlive: boolean;
+  equipment: string[];
 }
 
 export class OpponentPanel {
@@ -36,6 +38,7 @@ export class OpponentPanel {
     for (const opp of opponents) {
       const card = document.createElement("div");
       const isTurn = opp.isCurrentTurn;
+      const isDead = !opp.isAlive;
 
       card.style.cssText = `
         background: ${isTurn ? "#2a2a4e" : "#1a1a2e"};
@@ -45,6 +48,7 @@ export class OpponentPanel {
         color: #e0d5c0;
         min-width: 180px;
         transition: border-color 0.3s;
+        ${isDead ? "opacity: 0.4; filter: grayscale(0.8);" : ""}
       `;
 
       const header = document.createElement("div");
@@ -91,6 +95,22 @@ export class OpponentPanel {
 
       card.appendChild(hpBar);
       card.appendChild(hpLabel);
+
+      if (opp.equipment.length > 0) {
+        const equipEl = document.createElement("div");
+        equipEl.style.cssText = "margin-top:4px;font-size:11px;color:#aaa;";
+        const equipLabel = document.createElement("span");
+        equipLabel.textContent = "装备: ";
+        equipEl.appendChild(equipLabel);
+        for (const eq of opp.equipment) {
+          const tag = document.createElement("span");
+          tag.textContent = eq;
+          tag.style.cssText = "display:inline-block;padding:1px 4px;margin:1px;background:#2a2a3e;border-radius:3px;font-size:10px;color:#ccc;";
+          equipEl.appendChild(tag);
+        }
+        card.appendChild(equipEl);
+      }
+
       this.container.appendChild(card);
     }
   }

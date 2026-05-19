@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { DeckLoader, DeckError } from "./loader";
-import type { Deck } from "./types";
 
 function makeMinimalDeck(overrides?: Record<string, unknown>): Record<string, unknown> {
   return {

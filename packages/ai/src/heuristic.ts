@@ -1,4 +1,4 @@
-import type { PlayerId, GameEvent, EventResponse, CardInstanceId } from "@cardverse/shared";
+import type { PlayerId, GameEvent, EventResponse } from "@cardverse/shared";
 import type { AIAdapter, AIGameView, AIAction, AIPlayerInfo, HandCard } from "./types.js";
 
 const FALLBACK_ACTIONS: AIAction[] = [
@@ -88,13 +88,15 @@ export class HeuristicAI implements AIAdapter {
     let range = 1;
 
     for (const card of equipCards) {
-      const name = card.name;
-      if (name === "麒麟弓") range = Math.max(range, 5);
-      else if (name === "方天画戟") range = Math.max(range, 4);
-      else if (name === "青龙偃月刀") range = Math.max(range, 3);
-      else if (name === "丈八蛇矛" || name === "贯石斧") range = Math.max(range, 3);
-      else if (name === "雌雄双股剑" || name === "青釭剑") range = Math.max(range, 2);
-      else if (name === "诸葛连弩") range = Math.max(range, 2);
+      const tags = card.tags ?? [];
+      if (tags.includes("weapon")) {
+        for (const tag of tags) {
+          const match = tag.match(/^range-(\d+)$/);
+          if (match) {
+            range = Math.max(range, parseInt(match[1], 10));
+          }
+        }
+      }
     }
 
     return range;
@@ -117,7 +119,7 @@ export class HeuristicAI implements AIAdapter {
         default:
           return { type: "pass" };
       }
-    } catch (e) {
+    } catch (_e) {
       return pickRandom(FALLBACK_ACTIONS) ?? { type: "endTurn" };
     }
   }
@@ -192,7 +194,7 @@ export class HeuristicAI implements AIAdapter {
     const toDiscard = sorted.slice(0, excess).map((c) => c.instanceId);
 
     return {
-      type: "respond",
+      type: "discard",
       cardId: toDiscard[0],
       data: { discardAll: toDiscard },
     };
@@ -288,7 +290,7 @@ export class HeuristicAI implements AIAdapter {
         playerId: self.playerId,
         action: "pass",
       };
-    } catch (e) {
+    } catch (_e) {
       return null;
     }
   }

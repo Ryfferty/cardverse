@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { DeckLoader, DeckError } from "@cardverse/deck";
-import type { EffectDefinition } from "@cardverse/deck";
+import { DeckLoader } from "@cardverse/deck";
 import { shaDamage } from "./effects/sha.js";
 import { shanDodge } from "./effects/shan.js";
 import { taoHeal } from "./effects/tao.js";

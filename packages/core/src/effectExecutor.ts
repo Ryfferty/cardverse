@@ -42,10 +42,12 @@ export interface ExecutorDependencies {
 export class EffectExecutor {
   private deps: ExecutorDependencies;
   private executionCount = 0;
+  private maxSteps: number;
   private logs: string[] = [];
 
-  constructor(deps: ExecutorDependencies) {
+  constructor(deps: ExecutorDependencies, maxSteps: number = 1000) {
     this.deps = deps;
+    this.maxSteps = maxSteps;
   }
 
   getLogs(): string[] {
@@ -98,10 +100,25 @@ export class EffectExecutor {
     try {
       this.executionCount++;
 
-      const asyncFn = new Function(
-        "context",
-        `return (async () => { ${effect.script} })();`
-      );
+      if (this.executionCount > this.maxSteps) {
+        return { success: false, error: `Effect execution exceeded max steps (${this.maxSteps})`, lifecycle };
+      }
+
+      const sandboxedScript = `
+        const globalThis = undefined;
+        const global = undefined;
+        const process = undefined;
+        const require = undefined;
+        const fetch = undefined;
+        const XMLHttpRequest = undefined;
+        const importScripts = undefined;
+        const WebSocket = undefined;
+        const document = undefined;
+        const window = undefined;
+        const self = undefined;
+        return (async () => { ${effect.script} })();
+      `;
+      const asyncFn = new Function("context", sandboxedScript);
       const result = await asyncFn(context);
 
       this.deps.emitAndApply({
@@ -179,7 +196,7 @@ export class EffectExecutor {
     event?: GameEvent;
     params: Record<string, unknown>;
   }): EffectContext {
-    const state = this.deps.getState();
+    const _state = this.deps.getState();
     const currentEvent: GameEvent = params.event ?? {
       id: `effect_ctx_${Date.now()}`,
       type: "card:played" as EventTypeValue,

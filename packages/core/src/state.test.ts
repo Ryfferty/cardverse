@@ -1,14 +1,11 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { StateManager } from "./state";
 import {
   type GameState,
   type GameEvent,
   type PlayerState,
-  type ZoneState,
-  type ResourceState,
   type ZoneDefinition,
   type ResourceDefinition,
-  type PhaseDefinition,
   type EventTypeValue,
   EventType,
 } from "@cardverse/shared";
@@ -45,7 +42,7 @@ describe("StateManager", () => {
     };
 
     // Resource definitions
-    const healthResDef: ResourceDefinition = {
+    const _healthResDef: ResourceDefinition = {
       id: "health",
       name: "Health",
       defaultValue: 3,
@@ -53,7 +50,7 @@ describe("StateManager", () => {
       max: 5,
     };
 
-    const manaResDef: ResourceDefinition = {
+    const _manaResDef: ResourceDefinition = {
       id: "mana",
       name: "Mana",
       defaultValue: 1,

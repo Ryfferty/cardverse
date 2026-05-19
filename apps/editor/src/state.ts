@@ -1,4 +1,4 @@
-import type { CardEditorData, CardEffectEditor, CharacterEditorData, CharacterSkillEditor } from "./editor.js";
+import type { CardEditorData, CharacterEditorData } from "./editor.js";
 import { createEmptyCard, createEmptyCharacter, validateCardId, validateCharId } from "./editor.js";
 
 export const CATEGORIES = ["basic", "trick", "equipment"];

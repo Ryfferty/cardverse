@@ -11,7 +11,7 @@ interface PersistedState {
   savedAt: number;
 }
 
-export function saveEditorState(state: EditorState): void {
+export function saveEditorState(state: EditorState, onSave?: () => void): void {
   try {
     const data: PersistedState = {
       deckId: state.deckId,
@@ -21,6 +21,7 @@ export function saveEditorState(state: EditorState): void {
       savedAt: Date.now(),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    if (onSave) onSave();
   } catch {
     // localStorage may be full or unavailable
   }
@@ -31,7 +32,7 @@ export function loadEditorState(): PersistedState | null {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const data = JSON.parse(raw) as PersistedState;
-    if (!data || !Array.isArray(data.cards)) return null;
+    if (!data || !Array.isArray(data.cards) || !Array.isArray(data.characters)) return null;
     return data;
   } catch {
     return null;

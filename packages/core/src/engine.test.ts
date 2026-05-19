@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { Game } from "./engine";
 import { EventType } from "@cardverse/shared";
 import type {
@@ -6,7 +6,6 @@ import type {
   ZoneDefinition,
   ResourceDefinition,
   PhaseDefinition,
-  PlayerState,
   EventResponse,
 } from "@cardverse/shared";
 
@@ -79,8 +78,8 @@ function setupTwoPlayerGame(): Game {
   game.initZones([deckZoneDef, discardZoneDef]);
   game.initResources([healthDef, manaDef]);
 
-  const p1 = game.addPlayer("p1", "Alice");
-  const p2 = game.addPlayer("p2", "Bob");
+  const _p1 = game.addPlayer("p1", "Alice");
+  const _p2 = game.addPlayer("p2", "Bob");
 
   game.initPlayerZones("p1", [handZoneDef]);
   game.initPlayerZones("p2", [handZoneDef]);

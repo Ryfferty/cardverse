@@ -2,10 +2,8 @@ import {
   type ZoneDefinition,
   type ZoneState,
   type ZoneId,
-  type CardInstance,
   type CardInstanceId,
   type PlayerId,
-  type ZoneVisibility,
 } from "@cardverse/shared";
 
 /**
@@ -210,7 +208,7 @@ export class ZoneManager {
    */
   listPlayerZones(playerId: PlayerId): ZoneState[] {
     const result: ZoneState[] = [];
-    for (const [key, zone] of this.zones) {
+    for (const [_key, zone] of this.zones) {
       if (zone.playerId === playerId) {
         result.push(zone);
       }

@@ -26,7 +26,7 @@ export class DeckLoader {
   loadFromJson(json: Record<string, unknown>): Deck {
     const validation = this.validator.validate(json);
     const errors = validation.errors;
-    const warnings = validation.warnings;
+    const _warnings = validation.warnings;
 
     if (!validation.valid) {
       const errorMessages = errors.map((e) => e.message).join("; ");
@@ -156,6 +156,7 @@ export class DeckLoader {
   }
 
   private parseEffects(json: Record<string, unknown>): Deck["effects"] {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const effects = new Map<string, Deck["effects"] extends Map<any, infer V> ? V : never>();
     const cardsJson = json.cards;
     if (!Array.isArray(cardsJson)) return effects as Deck["effects"];

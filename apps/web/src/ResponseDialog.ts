@@ -26,10 +26,10 @@ export class ResponseDialog {
 
       if (config.timeout && config.timeout > 0) {
         setTimeout(() => {
-          if (this.resolve) {
-            this.dismiss();
-            resolve(null);
-          }
+          if (!this.resolve) return;
+          this.dismiss();
+          this.resolve(null);
+          this.resolve = null;
         }, config.timeout);
       }
     });

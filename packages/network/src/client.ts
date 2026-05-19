@@ -1,7 +1,7 @@
 import type { ClientConfig, NetworkMessage, ConnectionHandler, NetworkStatus, StatusHandler } from "./types.js";
 import { MessageCodec } from "./codec.js";
 
-const WS_CLOSED = 3;
+const _WS_CLOSED = 3;
 
 function getWebSocketConstructor(): typeof WebSocket {
   if (typeof WebSocket !== "undefined") {

@@ -248,7 +248,7 @@ describe("HeuristicAI", () => {
 
       const action = await ai.decideAction(view);
 
-      expect(action.type).toBe("respond");
+      expect(action.type).toBe("discard");
       expect(action.data).toBeDefined();
       expect((action.data as Record<string, unknown>).discardAll).toBeDefined();
       expect(Array.isArray((action.data as Record<string, unknown>).discardAll)).toBe(true);
@@ -271,7 +271,7 @@ describe("HeuristicAI", () => {
 
       const action = await ai.decideAction(view);
 
-      expect(action.type).toBe("respond");
+      expect(action.type).toBe("discard");
       const discardAll = (action.data as Record<string, unknown>).discardAll as string[];
       expect(discardAll.length).toBe(1);
       expect(discardAll[0]).toBe("inst_jiu_1");

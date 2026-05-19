@@ -1,6 +1,6 @@
 import { createInitialState } from "./state.js";
 import { buildLayout, render } from "./renderer.js";
-import { saveEditorState, loadEditorState, clearEditorState, getSavedTimestamp } from "./persistence.js";
+import { saveEditorState, loadEditorState, clearEditorState } from "./persistence.js";
 
 function main(): void {
   const state = createInitialState();
@@ -18,7 +18,13 @@ function main(): void {
   function autoSave(): void {
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      saveEditorState(state);
+      saveEditorState(state, () => {
+        const indicator = elements.statusBar.querySelector("#save-indicator") as HTMLElement | null;
+        if (indicator) {
+          indicator.textContent = `已保存 ${new Date().toLocaleTimeString()}`;
+          indicator.style.color = "#3fb950";
+        }
+      });
     }, 1000);
   }
 

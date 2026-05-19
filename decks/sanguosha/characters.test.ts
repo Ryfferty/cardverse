@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-import type { EffectDefinition } from "@cardverse/deck";
 import { caoCaoJueji } from "./effects/caocao.js";
 import { liuBeiRende } from "./effects/liubei.js";
 import { sunQuanZhiheng } from "./effects/sunquan.js";

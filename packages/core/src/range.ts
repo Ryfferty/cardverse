@@ -1,4 +1,9 @@
-import type { CardDefinition, PlayerId } from "@cardverse/shared";
+import type { CardDefinition } from "@cardverse/shared";
+
+export function extractDefinitionId(cardInstanceId: string): string {
+  const parts = cardInstanceId.split("_");
+  return parts.length >= 2 ? parts[1] : cardInstanceId;
+}
 
 export interface RangeModifiers {
   weaponRange: number;
@@ -21,7 +26,7 @@ export class RangeManager {
     mountOffense: number,
     mountDefense: number
   ): boolean {
-    const effectiveDistance = baseDistance + mountDefense - mountOffense;
+    const effectiveDistance = Math.max(0, baseDistance + mountDefense - mountOffense);
     return effectiveDistance <= weaponRange;
   }
 
@@ -59,8 +64,7 @@ export class RangeManager {
   ): CardDefinition[] {
     const result: CardDefinition[] = [];
     for (const cardId of equipmentCardIds) {
-      const parts = cardId.split("_");
-      const defId = parts.length >= 2 ? parts[1] : cardId;
+      const defId = extractDefinitionId(cardId);
       const def = cardDefinitions.get(defId);
       if (def && def.category === "equipment") {
         result.push(def);

@@ -51,7 +51,7 @@ export class HostServer {
 
   async stop(): Promise<void> {
     return new Promise((resolve) => {
-      for (const [clientId, client] of this.clients) {
+      for (const [_clientId, client] of this.clients) {
         client.ws.close();
       }
       this.clients.clear();

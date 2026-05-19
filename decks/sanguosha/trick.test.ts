@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { DeckLoader, DeckError } from "@cardverse/deck";
-import type { EffectDefinition } from "@cardverse/deck";
+import { DeckLoader } from "@cardverse/deck";
 import { guoheDiscard } from "./effects/guohe.js";
 import { shunshouSteal } from "./effects/shunshou.js";
 import { wuzhongDraw } from "./effects/wuzhong.js";
@@ -128,7 +127,7 @@ describe("Sanguosha Trick Deck", () => {
     const loader = new DeckLoader();
     const deck = loader.loadFromJson(trickJson);
 
-    for (const [id, card] of deck.cards) {
+    for (const [_id, card] of deck.cards) {
       expect(card.category).toBe("trick");
     }
   });

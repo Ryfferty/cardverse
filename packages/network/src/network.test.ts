@@ -179,7 +179,7 @@ describe("HostServer and ClientConnection", () => {
       const host = new HostServer("host_1", { port, maxPlayers: playerCount, roomCode: "SYNC" });
 
       const hostMessages: NetworkMessage[] = [];
-      host.onConnection((msg, clientId) => {
+      host.onConnection((msg, _clientId) => {
         hostMessages.push(msg);
       });
 

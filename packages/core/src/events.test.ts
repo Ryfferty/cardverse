@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { EventStack, EventBus, type EventHandler, type ResponseHandler } from "./events.js";
+import { EventStack, EventBus, type ResponseHandler } from "./events.js";
 import { EventType } from "@cardverse/shared";
 
 type MockEventOverrides = {
@@ -77,7 +77,7 @@ describe("EventStack", () => {
   describe("pop", () => {
     it("should return and remove the last event", () => {
       stack.push(createMockEvent({ type: "event:1" }));
-      const event2 = stack.push(createMockEvent({ type: "event:2" }));
+      const _event2 = stack.push(createMockEvent({ type: "event:2" }));
       const event3 = stack.push(createMockEvent({ type: "event:3" }));
 
       const result = stack.pop();
@@ -443,7 +443,7 @@ describe("EventBus", () => {
 
   describe("onResponse/removeResponseHandler", () => {
     it("should register and call response handler", async () => {
-      const responseHandler: ResponseHandler = (event) => ({
+      const responseHandler: ResponseHandler = (_event) => ({
         playerId: "player1",
         action: "respond",
         data: { response: "accepted" },

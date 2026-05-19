@@ -1,4 +1,4 @@
-import { type GameEvent, type EventResponse, EventType } from "@cardverse/shared";
+import { type GameEvent, type EventResponse } from "@cardverse/shared";
 
 function generateEventId(): string {
   return `evt_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;

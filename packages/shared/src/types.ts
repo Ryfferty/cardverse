@@ -222,6 +222,8 @@ export interface GameConfig {
   playerCount: number;
   /** Max steps before forced termination (default: 1000) */
   maxEffectSteps?: number;
+  /** Number of cards to draw per draw phase (default: 2) */
+  drawCount?: number;
   /** Response timeout in seconds */
   responseTimeout?: number;
   /** AI reconnect timeout in seconds */

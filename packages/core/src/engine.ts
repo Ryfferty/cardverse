@@ -25,7 +25,7 @@ import { PhaseManager } from "./phases.js";
 import { ResourceManager } from "./resources.js";
 import { EffectExecutor, type ExecutorDependencies, type EffectExecutionResult } from "./effectExecutor.js";
 import type { EffectDefinition } from "@cardverse/deck";
-import { RangeManager, type RangeModifiers } from "./range.js";
+import { RangeManager, type RangeModifiers, extractDefinitionId } from "./range.js";
 import { RoleManager } from "./roles.js";
 
 let gameIdCounter = 0;
@@ -42,6 +42,7 @@ export class Game {
   readonly roleManager: RoleManager;
 
   private maxEffectSteps: number;
+  private drawCount: number;
   private responseTimeout: number;
   private reconnectTimeout: number;
   private effects: Map<string, EffectDefinition> = new Map();
@@ -52,6 +53,7 @@ export class Game {
   private constructor(config: GameConfig, initialState: GameState) {
     this.config = config;
     this.maxEffectSteps = config.maxEffectSteps ?? DEFAULT_MAX_EFFECT_STEPS;
+    this.drawCount = config.drawCount ?? 2;
     this.responseTimeout = config.responseTimeout ?? DEFAULT_RESPONSE_TIMEOUT;
     this.reconnectTimeout = config.reconnectTimeout ?? DEFAULT_RECONNECT_TIMEOUT;
 
@@ -61,7 +63,7 @@ export class Game {
     this.zones = new ZoneManager();
     this.phases = new PhaseManager();
     this.resources = new ResourceManager(this.eventBus);
-    this.effectExecutor = new EffectExecutor(this.createExecutorDeps());
+    this.effectExecutor = new EffectExecutor(this.createExecutorDeps(), this.maxEffectSteps);
     this.roleManager = new RoleManager();
   }
 
@@ -222,7 +224,7 @@ export class Game {
   }
 
   private async autoDrawPhase(playerId: PlayerId): Promise<void> {
-    await this.drawCards(playerId, 2);
+    await this.drawCards(playerId, this.drawCount);
   }
 
   private async autoDiscardPhase(playerId: PlayerId): Promise<void> {
@@ -231,6 +233,18 @@ export class Game {
     const excess = handCards.length - health;
 
     if (excess <= 0) return;
+
+    await this.emitAndApply({
+      type: EventType.RESPONSE_REQUESTED,
+      source: playerId,
+      data: {
+        type: "discard_phase",
+        playerId,
+        excess,
+        handCards,
+        handLimit: health,
+      },
+    });
 
     const toDiscard = handCards.slice(0, excess);
     for (const cardId of toDiscard) {
@@ -340,9 +354,8 @@ export class Game {
     if (!deckZone) return [];
 
     const drawn: CardInstanceId[] = [];
-    for (let i = 0; i < count && deckZone.cards.length > 0; i++) {
-      const cardId = deckZone.cards[0];
-      deckZone.cards.splice(0, 1);
+    const toDraw = deckZone.cards.slice(0, count);
+    for (const cardId of toDraw) {
       drawn.push(cardId);
       await this.drawCard(playerId, cardId);
     }
@@ -504,9 +517,19 @@ export class Game {
   private resolveEffects(cardInstanceId: CardInstanceId): EffectDefinition[] {
     const result: EffectDefinition[] = [];
     if (!this.effects) return result;
-    for (const [, effect] of this.effects) {
-      result.push(effect);
+
+    const defId = this.extractDefinitionId(cardInstanceId);
+    const cardDef = this.cardDefinitions.get(defId);
+    if (!cardDef || !cardDef.effects) return result;
+
+    for (const effectRef of cardDef.effects) {
+      const effectId = effectRef.id;
+      const effect = this.effects.get(effectId);
+      if (effect) {
+        result.push(effect);
+      }
     }
+
     return result;
   }
 
@@ -520,9 +543,7 @@ export class Game {
   }
 
   private extractDefinitionId(cardInstanceId: CardInstanceId): string {
-    const parts = cardInstanceId.split("_");
-    if (parts.length >= 2) return parts[1];
-    return cardInstanceId;
+    return extractDefinitionId(cardInstanceId);
   }
 
   /**

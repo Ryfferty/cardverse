@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { DeckLoader } from "@cardverse/deck";
-import type { EffectDefinition } from "@cardverse/deck";
 import { zhugeliannuFire } from "./effects/zhugeliannu.js";
 import { qinggangPierce } from "./effects/qinggang.js";
 import { cixiongTrigger } from "./effects/cixiong.js";

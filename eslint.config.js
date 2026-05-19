@@ -23,6 +23,7 @@ export default tseslint.config(
         {
           argsIgnorePattern: "^_",
           varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
         },
       ],
       "@typescript-eslint/explicit-function-return-type": "off",
@@ -40,6 +41,7 @@ export default tseslint.config(
     files: ["**/*.test.ts"],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/consistent-type-imports": "off",
     },
   },
 );

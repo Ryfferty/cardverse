@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { ResourceManager } from "./resources";
 import { EventBus } from "./events";
-import type { ResourceDefinition, ResourceState } from "@cardverse/shared";
+import type { ResourceDefinition } from "@cardverse/shared";
 
 describe("ResourceManager", () => {
   let manager: ResourceManager;
@@ -24,7 +24,7 @@ describe("ResourceManager", () => {
     regenPerTurn: 1,
   };
 
-  const energyDef: ResourceDefinition = {
+  const _energyDef: ResourceDefinition = {
     id: "energy",
     name: "Energy",
     defaultValue: 0,
