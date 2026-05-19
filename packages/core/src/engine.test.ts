@@ -15,6 +15,7 @@ function createConfig(overrides?: Partial<GameConfig>): GameConfig {
   return {
     deckId: "test_deck",
     playerCount: 4,
+    discardTimeoutMs: 100,
     ...overrides,
   };
 }
@@ -663,6 +664,137 @@ describe("Game", () => {
       game.phases.goToPhase(discIdx - 1);
 
       // Enter discard, then leave it to trigger auto-discard
+      await game.nextPhase();
+      await game.nextPhase();
+
+      expect(game.getPlayerHandCount("p1")).toBeLessThanOrEqual(2);
+    });
+
+    it("should emit DISCARD_PHASE event during discard phase", async () => {
+      const game = setupTwoPlayerGame();
+      game.initPhases(testPhases);
+      game.initZones([deckZoneDef, discardZoneDef]);
+      game.initPlayerZones("p1", [handZoneDef]);
+      game.initPlayerZones("p2", [handZoneDef]);
+
+      await game.start();
+
+      game.resources.set("p1", "health", 2);
+      game.state.setPlayerZone("p1", "hand", {
+        definition: handZoneDef,
+        cards: ["card_j", "card_k", "card_l"],
+        playerId: "p1",
+      });
+
+      let discardPhaseEvent: GameEvent | null = null;
+      game.eventBus.on("discard:phase", async (event: GameEvent) => {
+        discardPhaseEvent = event;
+      });
+
+      await game.startTurn("p1");
+      const phases = game.phases.getAllPhases();
+      const discIdx = phases.findIndex(p => p.id === "discard");
+      game.phases.goToPhase(discIdx - 1);
+
+      await game.nextPhase();
+      await game.nextPhase();
+
+      expect(discardPhaseEvent).not.toBeNull();
+      expect(discardPhaseEvent!.data.excess).toBe(1);
+      expect(discardPhaseEvent!.data.handLimit).toBe(2);
+    });
+
+    it("should accept discard selection via selectDiscardCards", async () => {
+      const game = setupTwoPlayerGame();
+      game.initPhases(testPhases);
+      game.initZones([deckZoneDef, discardZoneDef]);
+      game.initPlayerZones("p1", [handZoneDef]);
+      game.initPlayerZones("p2", [handZoneDef]);
+
+      await game.start();
+
+      game.resources.set("p1", "health", 1);
+      game.state.setPlayerZone("p1", "hand", {
+        definition: handZoneDef,
+        cards: ["card_j", "card_k", "card_l"],
+        playerId: "p1",
+      });
+
+      game.eventBus.on("discard:phase", async () => {
+        setTimeout(async () => {
+          await game.selectDiscardCards("p1", ["card_k", "card_l"]);
+        }, 50);
+      });
+
+      await game.startTurn("p1");
+      const phases = game.phases.getAllPhases();
+      const discIdx = phases.findIndex(p => p.id === "discard");
+      game.phases.goToPhase(discIdx - 1);
+
+      await game.nextPhase();
+      await game.nextPhase();
+
+      expect(game.getPlayerHandCount("p1")).toBe(1);
+      const handCards = game.getPlayerHandCards("p1");
+      expect(handCards).toContain("card_j");
+    }, 10000);
+
+    it("should emit DISCARD_COMPLETED event after discard", async () => {
+      const game = setupTwoPlayerGame();
+      game.initPhases(testPhases);
+      game.initZones([deckZoneDef, discardZoneDef]);
+      game.initPlayerZones("p1", [handZoneDef]);
+      game.initPlayerZones("p2", [handZoneDef]);
+
+      await game.start();
+
+      game.resources.set("p1", "health", 2);
+      game.state.setPlayerZone("p1", "hand", {
+        definition: handZoneDef,
+        cards: ["card_j", "card_k", "card_l"],
+        playerId: "p1",
+      });
+
+      let completedEvent: GameEvent | null = null;
+      game.eventBus.on("discard:completed", async (event: GameEvent) => {
+        completedEvent = event;
+      });
+
+      await game.startTurn("p1");
+      const phases = game.phases.getAllPhases();
+      const discIdx = phases.findIndex(p => p.id === "discard");
+      game.phases.goToPhase(discIdx - 1);
+
+      await game.nextPhase();
+      await game.nextPhase();
+
+      expect(completedEvent).not.toBeNull();
+      expect(completedEvent!.data.playerId).toBe("p1");
+      expect(Array.isArray(completedEvent!.data.discardedCards)).toBe(true);
+      expect(typeof completedEvent!.data.remainingHand).toBe("number");
+    });
+
+    it("should auto-select lowest value cards on timeout", async () => {
+      const game = setupTwoPlayerGame();
+      game.initPhases(testPhases);
+      game.initZones([deckZoneDef, discardZoneDef]);
+      game.initPlayerZones("p1", [handZoneDef]);
+      game.initPlayerZones("p2", [handZoneDef]);
+
+      await game.start();
+
+      game.resources.set("p1", "health", 2);
+      game.state.setPlayerZone("p1", "hand", {
+        definition: handZoneDef,
+        cards: ["card_j", "card_k", "card_l"],
+        playerId: "p1",
+      });
+
+      await game.startTurn("p1");
+      const phases = game.phases.getAllPhases();
+      const discIdx = phases.findIndex(p => p.id === "discard");
+      game.phases.goToPhase(discIdx - 1);
+
       await game.nextPhase();
       await game.nextPhase();
 

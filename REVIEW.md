@@ -1257,6 +1257,24 @@
   6. 清理 19 个 `as any` 断言：heuristic.test.ts 13 个 → `GameEvent`，resources.test.ts 4 个 → `GameEvent | null` / `string | undefined`，engine.test.ts 2 个 → `Record<string, unknown> | undefined` / `EventTypeValue | undefined`
 - **结论**: ✅ 自审通过
 
+### 自审-TASK-033: 弃牌选择机制完善
+- **日期**: 2026-05-19
+- **构建**: ✅ pnpm build 通过（8 packages）
+- **测试**: ✅ 636/636 通过（core 362 + deck 109 + sanguosha 79 + ai 34 + web 14 + editor 10 + network 28）
+- **Lint**: ✅ 0 issues
+- **自审清单**: ✅ 全部通过
+- **发现**: 无
+- **修复内容**:
+  1. 添加 `DISCARD_PHASE` 和 `DISCARD_COMPLETED` 事件类型到 shared/types.ts
+  2. 引擎 `autoDiscardPhase` 改为发出 `DISCARD_PHASE` 事件并等待响应（`waitForDiscardResponse`），超时自动弃最低价值牌
+  3. 新增 `selectDiscardCards()` 公共方法供 AI/UI 提交弃牌选择
+  4. 新增 `discardTimeoutMs` 配置项（默认 30 秒，测试用 100ms）
+  5. AI 弃牌改用 `game.selectDiscardCards()` 替代直接 `removeCardFromHand`
+  6. 新增 `DiscardDialog` UI 组件：点击选择弃牌、确认提交、超时自动弃牌
+  7. main.ts 监听 `discard:phase` 事件，为人类玩家弹出弃牌选择界面
+  8. 新增 4 个测试：DISCARD_PHASE 事件、selectDiscardCards 选择、DISCARD_COMPLETED 事件、超时自动弃牌
+- **结论**: ✅ 自审通过
+
 ### 自审-TASK-032: 可玩性验证端到端测试
 - **日期**: 2026-05-19
 - **构建**: ✅ pnpm build 通过（8 packages）

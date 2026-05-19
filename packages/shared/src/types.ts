@@ -154,6 +154,9 @@ export const EventType = {
   RESPONSE_REQUESTED: "response:requested",
   RESPONSE_GIVEN: "response:given",
   RESPONSE_TIMEOUT: "response:timeout",
+  // Discard phase
+  DISCARD_PHASE: "discard:phase",
+  DISCARD_COMPLETED: "discard:completed",
   // Resource
   RESOURCE_CHANGED: "resource:changed",
 } as const;
@@ -224,6 +227,8 @@ export interface GameConfig {
   maxEffectSteps?: number;
   /** Number of cards to draw per draw phase (default: 2) */
   drawCount?: number;
+  /** Discard phase selection timeout in milliseconds (default: 30000) */
+  discardTimeoutMs?: number;
   /** Response timeout in seconds */
   responseTimeout?: number;
   /** AI reconnect timeout in seconds */

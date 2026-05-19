@@ -43,6 +43,7 @@ export class Game {
 
   private maxEffectSteps: number;
   private drawCount: number;
+  private discardTimeoutMs: number;
   private responseTimeout: number;
   private reconnectTimeout: number;
   private effects: Map<string, EffectDefinition> = new Map();
@@ -54,6 +55,7 @@ export class Game {
     this.config = config;
     this.maxEffectSteps = config.maxEffectSteps ?? DEFAULT_MAX_EFFECT_STEPS;
     this.drawCount = config.drawCount ?? 2;
+    this.discardTimeoutMs = config.discardTimeoutMs ?? 30000;
     this.responseTimeout = config.responseTimeout ?? DEFAULT_RESPONSE_TIMEOUT;
     this.reconnectTimeout = config.reconnectTimeout ?? DEFAULT_RECONNECT_TIMEOUT;
 
@@ -235,10 +237,9 @@ export class Game {
     if (excess <= 0) return;
 
     await this.emitAndApply({
-      type: EventType.RESPONSE_REQUESTED,
+      type: EventType.DISCARD_PHASE,
       source: playerId,
       data: {
-        type: "discard_phase",
         playerId,
         excess,
         handCards,
@@ -246,10 +247,61 @@ export class Game {
       },
     });
 
-    const toDiscard = handCards.slice(0, excess);
+    const response = await this.waitForDiscardResponse(playerId, excess, handCards);
+
+    const toDiscard = response.length > 0 ? response : handCards.slice(0, excess);
     for (const cardId of toDiscard) {
       await this.discardCard(playerId, cardId);
     }
+
+    await this.emitAndApply({
+      type: EventType.DISCARD_COMPLETED,
+      source: playerId,
+      data: {
+        playerId,
+        discardedCards: toDiscard,
+        remainingHand: this.getPlayerHandCards(playerId).length,
+      },
+    });
+  }
+
+  private async waitForDiscardResponse(
+    playerId: PlayerId,
+    excess: number,
+    handCards: CardInstanceId[]
+  ): Promise<CardInstanceId[]> {
+    return new Promise<CardInstanceId[]>((resolve) => {
+      const timeoutMs = this.discardTimeoutMs;
+      let settled = false;
+
+      const settle = (cards: CardInstanceId[]) => {
+        if (settled) return;
+        settled = true;
+        this.eventBus.off("discard:select", handler);
+        resolve(cards);
+      };
+
+      const handler = async (event: GameEvent) => {
+        if (event.source !== playerId) return;
+        const selectedCards = event.data.selectedCards as CardInstanceId[] | undefined;
+        if (!selectedCards || selectedCards.length !== excess) return;
+
+        const valid = selectedCards.every((c) => handCards.includes(c));
+        if (valid) {
+          settle(selectedCards);
+        }
+      };
+
+      this.eventBus.on("discard:select", handler);
+
+      setTimeout(() => {
+        settle(this.autoSelectDiscardCards(handCards, excess));
+      }, timeoutMs);
+    });
+  }
+
+  private autoSelectDiscardCards(handCards: CardInstanceId[], excess: number): CardInstanceId[] {
+    return handCards.slice(0, excess);
   }
 
   /**
@@ -401,6 +453,14 @@ export class Game {
       type: EventType.RESPONSE_GIVEN,
       source: response.playerId,
       data: { eventId, response },
+    });
+  }
+
+  async selectDiscardCards(playerId: PlayerId, selectedCards: CardInstanceId[]): Promise<void> {
+    await this.emitAndApply({
+      type: "discard:select" as EventTypeValue,
+      source: playerId,
+      data: { selectedCards },
     });
   }
 

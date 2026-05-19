@@ -6,6 +6,7 @@ import { DeckLoader } from "@cardverse/deck";
 import { Game } from "@cardverse/core";
 import type { ZoneDefinition, PhaseDefinition, ResourceDefinition, PlayerId, CardInstanceId } from "@cardverse/shared";
 import { ResponseDialog } from "./ResponseDialog.js";
+import { DiscardDialog } from "./DiscardDialog.js";
 import { OpponentPanel, type OpponentInfo } from "./OpponentPanel.js";
 
 interface DeckCard {
@@ -392,12 +393,10 @@ async function main(): Promise<void> {
               }
             }
 
-            if (action.type === "respond" && action.data) {
+            if (action.type === "discard" && action.data) {
               const discardAll = (action.data as Record<string, unknown>).discardAll as string[] | undefined;
               if (discardAll) {
-                for (const cardId of discardAll) {
-                  removeCardFromHand(aiPlayerId, cardId);
-                }
+                await game.selectDiscardCards(aiPlayerId, discardAll);
               }
               break;
             }
@@ -611,6 +610,31 @@ async function main(): Promise<void> {
             playerId: humanPid,
             action: "pass",
           });
+        }
+        updateGameUI();
+      }
+    }
+
+    if (event.type === "discard:phase" && event.data) {
+      const discardPlayerId = event.data.playerId as string | undefined;
+      const humanPid = getHumanPlayerId();
+
+      if (discardPlayerId === humanPid) {
+        const excess = event.data.excess as number;
+        const handCardIds = getAiHandCards(humanPid);
+        const handCards = buildHandCards(allCards, handCardIds);
+
+        const dialog = new DiscardDialog();
+        const selected = await dialog.prompt({
+          title: "弃牌阶段",
+          message: `你需要弃 ${excess} 张牌`,
+          availableCards: handCards,
+          discardCount: excess,
+          timeout: 30000,
+        });
+
+        if (selected && selected.length === excess) {
+          await game.selectDiscardCards(humanPid, selected);
         }
         updateGameUI();
       }

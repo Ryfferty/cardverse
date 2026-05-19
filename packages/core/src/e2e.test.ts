@@ -89,6 +89,7 @@ function createGame(): Game {
   const game = Game.create({
     deckId: "sanguosha-standard",
     playerCount: 4,
+    discardTimeoutMs: 100,
   });
   game.initZones(deckZones);
   game.initResources(deckResources);
