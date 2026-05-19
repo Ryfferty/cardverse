@@ -20,6 +20,8 @@ import { StateManager } from "./state.js";
 import { ZoneManager } from "./zones.js";
 import { PhaseManager } from "./phases.js";
 import { ResourceManager } from "./resources.js";
+import { EffectExecutor, type ExecutorDependencies, type EffectExecutionResult } from "./effectExecutor.js";
+import type { EffectDefinition } from "@cardverse/deck";
 
 let gameIdCounter = 0;
 
@@ -31,10 +33,12 @@ export class Game {
   readonly zones: ZoneManager;
   readonly phases: PhaseManager;
   readonly resources: ResourceManager;
+  readonly effectExecutor: EffectExecutor;
 
   private maxEffectSteps: number;
   private responseTimeout: number;
   private reconnectTimeout: number;
+  private effects: Map<string, EffectDefinition> = new Map();
 
   private constructor(config: GameConfig, initialState: GameState) {
     this.config = config;
@@ -48,6 +52,7 @@ export class Game {
     this.zones = new ZoneManager();
     this.phases = new PhaseManager();
     this.resources = new ResourceManager(this.eventBus);
+    this.effectExecutor = new EffectExecutor(this.createExecutorDeps());
   }
 
   static create(config: GameConfig): Game {
@@ -227,16 +232,37 @@ export class Game {
 
   /**
    * Play a card from a player's hand.
+   * Automatically executes all effects defined on the card.
    */
   async playCard(
     playerId: PlayerId,
     cardInstanceId: CardInstanceId,
     targets?: PlayerId[]
-  ): Promise<void> {
-    await this.emitAndApply({
+  ): Promise<EffectExecutionResult[]> {
+    const state = this.getState();
+    const player = state.players.get(playerId);
+    if (!player) throw new Error(`Player "${playerId}" not found`);
+
+    const event: GameEvent = {
+      id: `card_played_${Date.now()}_${cardInstanceId}`,
       type: EventType.CARD_PLAYED,
       source: playerId,
       data: { cardId: cardInstanceId, playerId, targets },
+      timestamp: Date.now(),
+      stackDepth: 0,
+    };
+
+    await this.emitAndApply(event);
+
+    const cardEffects = this.lookupEffects(cardInstanceId);
+    if (cardEffects.length === 0) return [];
+
+    return this.effectExecutor.executeCard(cardEffects, {
+      playerId,
+      playerName: player.name,
+      targets,
+      cardId: cardInstanceId,
+      event,
     });
   }
 
@@ -298,6 +324,70 @@ export class Game {
    */
   off(eventType: string, handler: EventHandler): void {
     this.eventBus.off(eventType, handler);
+  }
+
+  /**
+   * Register effect definitions (from a loaded deck).
+   */
+  setEffects(effects: Map<string, EffectDefinition>): void {
+    this.effects = effects;
+  }
+
+  /**
+   * Look up effects for a specific card instance.
+   */
+  private lookupEffects(cardInstanceId: CardInstanceId): EffectDefinition[] {
+    const state = this.getState();
+    for (const [, player] of state.players) {
+      for (const [, zone] of player.zones) {
+        const idx = zone.cards.indexOf(cardInstanceId);
+        if (idx >= 0) return this.resolveEffects(cardInstanceId);
+      }
+    }
+    for (const [, zone] of state.globalZones) {
+      const idx = zone.cards.indexOf(cardInstanceId);
+      if (idx >= 0) return this.resolveEffects(cardInstanceId);
+    }
+    return [];
+  }
+
+  private resolveEffects(cardInstanceId: CardInstanceId): EffectDefinition[] {
+    const result: EffectDefinition[] = [];
+    if (!this.effects) return result;
+    for (const [, effect] of this.effects) {
+      result.push(effect);
+    }
+    return result;
+  }
+
+  /**
+   * Create the ExecutorDependencies adapter from this Game instance.
+   */
+  private createExecutorDeps(): ExecutorDependencies {
+    return {
+      eventBus: {
+        emit: (event) => this.eventBus.emit(event),
+        requestResponse: (eventType, event, timeoutMs) =>
+          this.eventBus.requestResponse(eventType, event, timeoutMs),
+      },
+      state: {
+        getCurrentState: () => this.state.getCurrentState(),
+        applyEvent: (event) => this.state.applyEvent(event),
+      },
+      resources: {
+        getValue: (playerId, resourceId) =>
+          this.resources.getValue(playerId, resourceId),
+        setValue: async (playerId, resourceId, value) => {
+          await this.resources.set(playerId, resourceId, value);
+        },
+      },
+      zones: {
+        getCards: (zoneId) => this.zones.getCards(zoneId),
+      },
+      emitAndApply: (eventData) =>
+        this.emitAndApply(eventData as Omit<GameEvent, "id" | "timestamp" | "stackDepth"> & { type: string }),
+      getState: () => this.state.getCurrentState(),
+    };
   }
 
   /**

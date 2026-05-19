@@ -352,7 +352,7 @@
 ## 阶段 6A：引擎核心补全
 
 ### TASK-020: 效果脚本执行引擎
-- **状态**: ⬜ 待开始
+- **状态**: ⏳ 进行中
 - **依赖**: TASK-006
 - **包**: `packages/core`（新建 `src/effectExecutor.ts`）
 - **描述**: 实现 EffectExecutor，能解析并执行效果脚本中的 `context.*` API 调用

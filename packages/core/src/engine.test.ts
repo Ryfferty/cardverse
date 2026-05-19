@@ -435,8 +435,10 @@ describe("Game", () => {
       game.initPhases(testPhases);
       await game.start();
 
-      // Playing card from non-existent player should not crash
-      await expect(game.playCard("p99", "card_x")).resolves.toBeUndefined();
+      // Playing card from non-existent player should throw
+      await expect(game.playCard("p99", "card_x")).rejects.toThrow(
+        'Player "p99" not found'
+      );
     });
 
     it("should handle playing card not in hand", async () => {
