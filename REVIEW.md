@@ -904,5 +904,280 @@
 
 ---
 
+## TASK-020~029 批量审查
+
+**构建**: ✅ 通过 | **测试**: ✅ 603/603 通过 | **ESLint**: 0 errors, 93 warnings
+**提交**: 11 个 feat commit（TASK-020~029），+2569 行
+
+---
+
+### TASK-020 审查（效果脚本执行引擎）
+
+### REVIEW-082: new Function() 无沙箱 — 安全漏洞
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-020
+- **文件**: `packages/core/src/effectExecutor.ts:101`
+- **日期**: 2026-05-19
+- **问题**: `new Function("context", ...)` 在全局作用域执行，脚本可访问 `globalThis`/`process`/`require`/`fetch`。
+- **建议**: 使用 `vm.runInNewContext` 或将全局对象置为 undefined。
+- **优先级**: 🔴 高（安全漏洞）
+
+### REVIEW-083: resolveEffects 返回所有已注册效果
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-020
+- **文件**: `packages/core/src/engine.ts:504-511`
+- **日期**: 2026-05-19
+- **问题**: 遍历所有 effects 返回全部，而非根据 cardInstanceId 查找对应效果。
+- **建议**: 根据卡牌 definition ID 查找关联效果。
+- **优先级**: 🔴 高（逻辑错误，所有卡牌执行相同效果）
+
+### REVIEW-084: maxEffectSteps 配置未生效
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-020
+- **文件**: `packages/core/src/effectExecutor.ts`
+- **日期**: 2026-05-19
+- **问题**: Game 持有 maxEffectSteps 但未传递给 EffectExecutor，executionCount 未检查上限。
+- **建议**: EffectExecutor 构造时接收 maxSteps，执行前检查。
+- **优先级**: 🔴 高（无限循环风险）
+
+### REVIEW-085: drawCards 直接突变状态
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-020
+- **文件**: `packages/core/src/engine.ts:343-345`
+- **日期**: 2026-05-19
+- **问题**: `deckZone.cards.splice(0, 1)` 直接修改 StateManager 内部状态，绕过事件驱动模型。
+- **建议**: 仅通过事件驱动状态变更。
+- **优先级**: 🔴 高（破坏事件溯源）
+
+---
+
+### TASK-021 审查（AI 数据流修复）
+
+### REVIEW-086: AI 硬编码武器中文名
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-021
+- **文件**: `packages/ai/src/heuristic.ts:91-98`
+- **日期**: 2026-05-19
+- **问题**: `if (name === "麒麟弓") range = 5` 硬编码，RangeManager 已有 tag 解析方案但 AI 未复用。
+- **建议**: 复用 `RangeManager.getEquipmentModifiers` 或读取 card tags。
+- **优先级**: 🟡 中
+
+### REVIEW-087: decideDiscard 使用非法 action type
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-021
+- **文件**: `packages/ai/src/heuristic.ts:194-198`
+- **日期**: 2026-05-19
+- **问题**: 弃牌返回 `type: "respond"`，应使用专门的 discard action type。
+- **优先级**: 🟡 中
+
+---
+
+### TASK-022 审查（攻击距离/范围系统）
+
+### REVIEW-088: isInRange 未防护负数有效距离
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-022
+- **文件**: `packages/core/src/range.ts:24`
+- **日期**: 2026-05-19
+- **问题**: mountOffense 过大时 effectiveDistance 可能为负。
+- **建议**: `Math.max(0, baseDistance + mountDefense - mountOffense)`。
+- **优先级**: 🟡 中
+
+### REVIEW-089: resolveEquipmentCards 依赖脆弱 ID 格式
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-022
+- **文件**: `packages/core/src/range.ts:62-63`
+- **日期**: 2026-05-19
+- **问题**: `cardId.split("_")` 解析依赖 `prefix_defId_N` 格式。
+- **建议**: 提取为共享工具函数。
+- **优先级**: 🟢 低
+
+---
+
+### TASK-023 审查（摸牌/弃牌自动化）
+
+### REVIEW-090: 摸牌数硬编码为 2
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-023
+- **文件**: `packages/core/src/engine.ts:225`
+- **日期**: 2026-05-19
+- **问题**: `drawCards(playerId, 2)` 写死，无法配置（如观星后少摸）。
+- **建议**: 从 rules 配置读取。
+- **优先级**: 🟡 中
+
+### REVIEW-091: 弃牌无玩家选择，自动弃前 N 张
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-023
+- **文件**: `packages/core/src/engine.ts:235`
+- **日期**: 2026-05-19
+- **问题**: `handCards.slice(0, excess)` 总是弃前 N 张，玩家/AI 无法选择。
+- **建议**: 触发 DISCARD_PHASE 事件，由 AI 或玩家决定弃哪些。
+- **优先级**: 🟡 中
+
+---
+
+### TASK-024 审查（身份分配机制）
+
+### REVIEW-092: 胜利条件关联逻辑缺失
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-024
+- **文件**: `packages/core/src/roles.ts`
+- **日期**: 2026-05-19
+- **问题**: RoleManager 仅有分配和查询，无 `checkVictory()` 方法。engine.ts 淘汰判定不检查阵营胜利。
+- **建议**: 添加 `checkVictory(alivePlayers)` 方法，判定主公阵营/反贼/内奸胜利。
+- **优先级**: 🔴 高（身份局核心功能缺失）
+
+### REVIEW-093: 使用有偏洗牌算法
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-024
+- **文件**: `packages/core/src/roles.ts:14,16`
+- **日期**: 2026-05-19
+- **问题**: `.sort(() => Math.random() - 0.5)` 不是均匀随机。
+- **建议**: 使用 Fisher-Yates 洗牌。
+- **优先级**: 🟡 中
+
+---
+
+### TASK-025 审查（AI 集成到 Web UI）
+
+### REVIEW-094: 玩家名称硬编码与随机身份矛盾
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-025
+- **文件**: `apps/web/src/main.ts:105,151`
+- **日期**: 2026-05-19
+- **问题**: `playerNames` 硬编码「主公（你）」，但 `assignRoles()` 随机分配。人类可能不是主公。
+- **建议**: assignRoles 后根据实际角色生成名称。
+- **优先级**: 🔴 高（UI 显示错误）
+
+### REVIEW-095: 响应处理绕过引擎，本地扣血
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-025
+- **文件**: `apps/web/src/main.ts:515-556`
+- **日期**: 2026-05-19
+- **问题**: 未出闪时直接 `applyDamage()` 本地修改，不经事件系统。万箭/南蛮响应不扣血。
+- **建议**: 通过 `game.respondToEvent()` 反馈引擎。
+- **优先级**: 🔴 高（状态不一致）
+
+### REVIEW-096: AI 回合 catch 静默吞错
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-025
+- **文件**: `apps/web/src/main.ts:379`
+- **日期**: 2026-05-19
+- **问题**: `catch { // skip }` 完全吞掉错误。
+- **建议**: 添加 `console.warn`。
+- **优先级**: 🟡 中
+
+---
+
+### TASK-026 审查（响应流程 UI）
+
+### REVIEW-097: ResponseDialog 双重 resolve 竞态
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-026
+- **文件**: `apps/web/src/ResponseDialog.ts:22-35`
+- **日期**: 2026-05-19
+- **问题**: timeout 回调与按钮点击存在竞态，Promise 可能被 resolve 两次。
+- **建议**: timeout 首行加 `if (!this.resolve) return;` 守卫。
+- **优先级**: 🔴 高（竞态 bug）
+
+### REVIEW-098: 缺少决斗响应
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-026
+- **文件**: `apps/web/src/main.ts:494-557`
+- **日期**: 2026-05-19
+- **问题**: 仅覆盖 sha/wanjian/nanman，缺少 juedou（决斗）响应弹窗。
+- **优先级**: 🟡 中
+
+---
+
+### TASK-027 审查（其他玩家信息面板）
+
+### REVIEW-099: 缺少装备显示 — 验收标准未满足
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-027
+- **文件**: `apps/web/src/OpponentPanel.ts`
+- **日期**: 2026-05-19
+- **问题**: `OpponentInfo` 无 `equipment` 字段，不显示装备。
+- **建议**: 添加 equipment 字段 + 渲染。
+- **优先级**: 🔴 高（验收不符）
+
+### REVIEW-100: 缺少淘汰灰显 — 验收标准未满足
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-027
+- **文件**: `apps/web/src/OpponentPanel.ts`
+- **日期**: 2026-05-19
+- **问题**: 无 `isAlive` 字段，淘汰玩家不灰显。
+- **建议**: 添加 isAlive + opacity/filter 样式。
+- **优先级**: 🔴 高（验收不符）
+
+---
+
+### TASK-028 审查（编辑器数据持久化）
+
+### REVIEW-101: loadEditorState 未校验 characters 数组
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-028
+- **文件**: `apps/editor/src/persistence.ts:34`
+- **日期**: 2026-05-19
+- **问题**: 仅检查 `Array.isArray(data.cards)`，未检查 characters。
+- **建议**: 增加 characters 校验。
+- **优先级**: 🟡 中
+
+### REVIEW-102: 保存指示器时序误导
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-028
+- **文件**: `apps/editor/src/renderer.ts:484`
+- **日期**: 2026-05-19
+- **问题**: 每次 render 显示「已保存」，但实际保存在 1 秒 debounce 后。
+- **建议**: 保存完成后回调更新。
+- **优先级**: 🟡 中
+
+---
+
+### TASK-029 审查（CI/CD + ESLint）
+
+### REVIEW-103: CI 缺少 lint 步骤
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-029
+- **文件**: `.github/workflows/ci.yml`
+- **日期**: 2026-05-19
+- **问题**: CI 只跑 build + test，不跑 lint。93 个 warnings 会持续累积。
+- **建议**: 添加 `pnpm lint` 步骤。
+- **优先级**: 🟡 中
+
+### REVIEW-104: 93 个 ESLint warnings 未清理
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-029
+- **文件**: 全局
+- **日期**: 2026-05-19
+- **问题**: 45 个 `consistent-type-imports`（`eslint --fix` 可自动修复）+ 42 个 `no-unused-vars` + 1 个 `no-explicit-any`。
+- **建议**: 运行 `eslint --fix` 消除 45 个，手动清理其余。
+- **优先级**: 🟡 中
+
+---
+
+### 全局问题
+
+### REVIEW-105: TASKS.md 状态未同步
+- **状态**: ❌ 未处理
+- **关联任务**: 全局
+- **日期**: 2026-05-19
+- **问题**: TASK-027/028/029 代码已提交但 TASKS.md 仍为 ⬜/⏳。
+- **建议**: 更新为 ✅。
+- **优先级**: 🔴 高
+
+### REVIEW-106: TASK-030 未实现
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-030
+- **日期**: 2026-05-19
+- **问题**: 网络消息补偿 + syncGame 取消订阅未实现。
+- **优先级**: 🟡 中
+
+---
+
+**汇总**: 🔴 高 10 项 / 🟡 中 13 项 / 🟢 低 1 项
+
+---
+
 *审查人: Hermes Agent | 日期: 2026-05-19*
     73|    73|
