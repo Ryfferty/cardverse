@@ -182,7 +182,8 @@ await game.drawCard("p1", "card_xyz");
 await game.respondToEvent("evt_123", {
   playerId: "p2",
   cardId: "shan_456",
-  type: "play_card",
+  action: "play_card",
+  targets: ["p1"],
   data: {},
 });
 ```

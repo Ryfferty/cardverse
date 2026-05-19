@@ -133,6 +133,15 @@ zoneManager.removeCard("player:p1:hand", "card_5");
 zoneManager.moveCard("player:p1:hand", "player:p1:equipment", "eight_diagram", 0);
 ```
 
+### `getCards(key: string): CardInstanceId[]`
+
+获取区域内所有卡牌 ID 的浅拷贝（不检查可见性）。
+
+```typescript
+const deckCards = zoneManager.getCards("global:deck");
+console.log(`牌堆中还有 ${deckCards.length} 张卡`);
+```
+
 ### `setCards(key: string, cardIds: string[]): boolean`
 
 替换区域内的所有卡牌（用于初始化）。

@@ -120,13 +120,20 @@ manager.updatePlayerHandCount("p1");
 | `game:end` | `status → "finished"`, 设置 winner |
 | `turn:start` | 设置 `currentTurn` |
 | `phase:start` | 更新 `currentTurn.phaseIndex` |
+| `phase:end` | 仅记录日志，不修改状态 |
 | `turn:end` | `turnNumber++`, 清除 `currentTurn` |
 | `card:played` | 从手牌区移除卡牌 |
-| `card:drawn` | 从牌堆移到手牌区 |
-| `card:discarded` | 从手牌移到弃牌堆 |
-| `card:moved` | 卡牌跨区域移动 |
-| `resource:changed` | 更新指定资源值 |
+| `card:drawn` | 从牌堆移到手牌区，更新 `handCount` |
+| `card:discarded` | 从手牌移到弃牌堆，更新 `handCount` |
+| `card:moved` | 卡牌跨区域移动（源→目标） |
+| `damage:dealt` | 伤害分配（不直接改状态，由下游处理） |
+| `damage:taken` | 伤害结算（不直接改状态，由下游处理） |
+| `heal:received` | 治疗结算（不直接改状态，由下游处理） |
+| `resource:changed` | 更新指定资源 `current` 值 |
 | `player:eliminated` | 玩家 `status → "dead"` |
+| `response:requested` | 响应请求（事件驱动，不修改状态） |
+| `response:given` | 响应提交（事件驱动，不修改状态） |
+| `response:timeout` | 响应超时（事件驱动，不修改状态） |
 
 ```typescript
 const newState = manager.applyEvent({
@@ -160,7 +167,7 @@ const finalState = StateManager.replay(initialState, events);
 ```typescript
 interface GameState {
   gameId: string;
-  status: "waiting" | "running" | "finished";
+  status: "waiting" | "setup" | "running" | "paused" | "finished";
   players: Map<PlayerId, PlayerState>;
   globalZones: Map<ZoneId, ZoneState>;
   turnNumber: number;
@@ -178,7 +185,7 @@ interface GameState {
 interface PlayerState {
   id: PlayerId;
   name: string;
-  status: "alive" | "dead";
+  status: "alive" | "dead" | "disconnected";
   zones: Map<ZoneId, ZoneState>;
   resources: Map<ResourceId, ResourceState>;
   handCount: number;

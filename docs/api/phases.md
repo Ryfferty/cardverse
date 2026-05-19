@@ -217,10 +217,10 @@ phaseManager.nextPhase({
 
 ```typescript
 interface PhaseDefinition {
-  id: string;         // 唯一标识（如 "draw", "play"）
-  name: string;       // 显示名称
-  condition?: string; // 动态条件（属性路径）
+  id: string;           // 唯一标识（如 "draw", "play"）
+  name: string;         // 显示名称
+  auto: boolean;        // 是否自动推进
+  condition?: string;   // 动态条件（属性路径）
   subPhases?: PhaseDefinition[]; // 子阶段（预留）
-  autoAdvance?: boolean;  // 是否自动推进
 }
 ```

@@ -151,7 +151,7 @@ const eventStack = new EventStack();
 
 ---
 
-### `push(event: Omit<GameEvent, "id" | "timestamp" | "stackDepth">): GameEvent`
+### `push(event: Omit<GameEvent, "id" | "timestamp" | "stackDepth" | "type"> & { type: string }): GameEvent`
 
 将事件推入堆栈。自动生成 `id`、`timestamp`、`stackDepth`。
 
@@ -250,9 +250,10 @@ interface GameEvent {
 
 ```typescript
 interface EventResponse {
-  playerId: PlayerId;    // 响应者
-  cardId?: CardInstanceId;  // 使用的卡牌
-  type: string;          // 响应类型
-  data: Record<string, unknown>;  // 响应数据
+  playerId: PlayerId;         // 响应者
+  cardId?: CardInstanceId;    // 使用的卡牌
+  action: string;             // 响应动作
+  targets?: PlayerId[];       // 目标玩家
+  data?: Record<string, unknown>;  // 响应数据
 }
 ```

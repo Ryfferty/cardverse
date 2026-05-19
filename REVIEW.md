@@ -785,12 +785,13 @@
 - **优先级**: 🔴 高（会导致使用者写出编译不过的代码）
 
 ### REVIEW-077: PhaseDefinition.autoAdvance 字段名错误（phases.md）
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-018
 - **文件**: `docs/api/phases.md`
 - **日期**: 2026-05-19
+- **修复**: 2026-05-19
 - **问题**: 文档用 `autoAdvance?: boolean`，实际源码是 `auto: boolean`（必填，字段名不同）。
-- **建议**: 修正为 `auto: boolean`。
+- **修复内容**: PhaseDefinition 接口中 `autoAdvance?: boolean` 改为 `auto: boolean`。
 - **优先级**: 🔴 高（类型不匹配）
 
 ### REVIEW-078: GameState.status 和 PlayerState.status 枚举值不完整（state.md）
@@ -821,12 +822,14 @@
 - **优先级**: 🟡 中
 
 ### REVIEW-081: StateManager.applyEvent 事件类型表格不完整（state.md）
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-018
 - **文件**: `docs/api/state.md`
 - **日期**: 2026-05-19
+- **修复**: 2026-05-19
 - **问题**: 表格仅列 11 种事件，源码还处理 `phase:end`、`damage:dealt/taken`、`heal:received`、`response:requested/given/timeout`。
 - **建议**: 补充说明"以下事件被识别但不直接修改状态"。
+- **修复内容**: 表格扩展至 18 种事件类型，补充 `phase:end`, `damage:dealt`, `damage:taken`, `heal:received`, `response:requested`, `response:given`, `response:timeout`。
 - **优先级**: 🟡 中
 
 ---
