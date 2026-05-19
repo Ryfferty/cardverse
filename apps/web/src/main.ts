@@ -5,6 +5,7 @@ import { HeuristicAI } from "@cardverse/ai";
 import { DeckLoader } from "@cardverse/deck";
 import { Game } from "@cardverse/core";
 import type { ZoneDefinition, PhaseDefinition, ResourceDefinition, PlayerId, CardInstanceId } from "@cardverse/shared";
+import { ResponseDialog } from "./ResponseDialog.js";
 
 interface DeckCard {
   id: string;
@@ -462,8 +463,73 @@ async function main(): Promise<void> {
     }
   });
 
-  game.eventBus.on("*", () => {
+  game.eventBus.on("*", async (event) => {
     updateGameUI();
+
+    if (event.type === "card:played" && event.data) {
+      const cardType = event.data.cardType as string | undefined;
+      const humanPid = getHumanPlayerId();
+
+      if (cardType === "sha") {
+        const targets = event.data.targets as string[] | undefined;
+        if (targets && targets.includes(humanPid)) {
+          await new Promise((r) => setTimeout(r, 300));
+
+          const handCardIds = getAiHandCards(humanPid);
+          const shanCards = buildHandCards(allCards, handCardIds)
+            .filter((c) => c.type === "shan" || c.id.includes("_shan_"));
+
+          const dialog = new ResponseDialog();
+          const result = await dialog.prompt({
+            title: "需要打出【闪】",
+            message: `${event.source} 对你使用了【杀】，是否打出【闪】？`,
+            availableCards: shanCards,
+            timeout: 30000,
+          });
+
+          if (result && result.choice === "play" && result.cardId) {
+            removeCardFromHand(humanPid, result.cardId);
+          } else {
+            applyDamage(humanPid, 1);
+          }
+          updateGameUI();
+        }
+      }
+
+      if (cardType === "wanjian") {
+        await new Promise((r) => setTimeout(r, 300));
+
+        const handCardIds = getAiHandCards(humanPid);
+        const shanCards = buildHandCards(allCards, handCardIds)
+          .filter((c) => c.type === "shan" || c.id.includes("_shan_"));
+
+        const dialog = new ResponseDialog();
+        await dialog.prompt({
+          title: "万箭齐发！",
+          message: `${event.source} 使用了万箭齐发，是否打出【闪】？`,
+          availableCards: shanCards,
+          timeout: 30000,
+        });
+        updateGameUI();
+      }
+
+      if (cardType === "nanman") {
+        await new Promise((r) => setTimeout(r, 300));
+
+        const handCardIds = getAiHandCards(humanPid);
+        const shaCards = buildHandCards(allCards, handCardIds)
+          .filter((c) => c.type === "sha" || c.id.includes("_sha_"));
+
+        const dialog = new ResponseDialog();
+        await dialog.prompt({
+          title: "南蛮入侵！",
+          message: `${event.source} 使用了南蛮入侵，是否打出【杀】？`,
+          availableCards: shaCards,
+          timeout: 30000,
+        });
+        updateGameUI();
+      }
+    }
   });
 
   const actionBtn = document.createElement("div");
