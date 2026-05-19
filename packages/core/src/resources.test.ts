@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { ResourceManager } from "./resources";
 import { EventBus } from "./events";
-import type { ResourceDefinition } from "@cardverse/shared";
+import type { ResourceDefinition, GameEvent } from "@cardverse/shared";
 
 describe("ResourceManager", () => {
   let manager: ResourceManager;
@@ -166,7 +166,7 @@ describe("ResourceManager", () => {
     });
 
     it("should emit RESOURCE_CHANGED event", async () => {
-      let capturedEvent: any = null;
+      let capturedEvent: GameEvent | null = null;
       eventBus.on("*", async (event) => {
         capturedEvent = event;
       });
@@ -174,16 +174,16 @@ describe("ResourceManager", () => {
       await manager.modify("player1", "health", 1);
 
       expect(capturedEvent).toBeDefined();
-      expect(capturedEvent.type).toBe("resource:changed");
-      expect(capturedEvent.data.playerId).toBe("player1");
-      expect(capturedEvent.data.resourceId).toBe("health");
-      expect(capturedEvent.data.oldValue).toBe(3);
-      expect(capturedEvent.data.newValue).toBe(4);
-      expect(capturedEvent.data.delta).toBe(1);
+      expect(capturedEvent!.type).toBe("resource:changed");
+      expect(capturedEvent!.data.playerId).toBe("player1");
+      expect(capturedEvent!.data.resourceId).toBe("health");
+      expect(capturedEvent!.data.oldValue).toBe(3);
+      expect(capturedEvent!.data.newValue).toBe(4);
+      expect(capturedEvent!.data.delta).toBe(1);
     });
 
     it("should use provided source in event", async () => {
-      let capturedSource: any;
+      let capturedSource: string | undefined;
       eventBus.on("*", async (event) => {
         capturedSource = event.source;
       });
@@ -193,7 +193,7 @@ describe("ResourceManager", () => {
     });
 
     it("should use 'system' as default source", async () => {
-      let capturedSource: any;
+      let capturedSource: string | undefined;
       eventBus.on("*", async (event) => {
         capturedSource = event.source;
       });
@@ -362,7 +362,7 @@ describe("ResourceManager", () => {
       manager.initResource("player1", "health");
       await manager.modify("player1", "health", -2);
 
-      let capturedEvent: any = null;
+      let capturedEvent: GameEvent | null = null;
       eventBus.on("*", async (event) => {
         if (event.data?.resourceId === "health" && event.source === "reset") {
           capturedEvent = event;
@@ -371,8 +371,8 @@ describe("ResourceManager", () => {
 
       await manager.resetToDefault("player1", "health");
       expect(capturedEvent).toBeDefined();
-      expect(capturedEvent.type).toBe("resource:changed");
-      expect(capturedEvent.data.newValue).toBe(3);
+      expect(capturedEvent!.type).toBe("resource:changed");
+      expect(capturedEvent!.data.newValue).toBe(3);
     });
   });
 

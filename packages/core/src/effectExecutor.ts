@@ -104,6 +104,10 @@ export class EffectExecutor {
         return { success: false, error: `Effect execution exceeded max steps (${this.maxSteps})`, lifecycle };
       }
 
+      // NOTE: We use `new Function()` with global variable overrides instead of `vm.runInNewContext`
+      // because this module runs in the browser (Web application). `vm` is only available in Node.js.
+      // Overriding globals to `undefined` provides a lightweight sandbox that prevents effect scripts
+      // from accessing browser/Node APIs while remaining compatible with both environments.
       const sandboxedScript = `
         const globalThis = undefined;
         const global = undefined;

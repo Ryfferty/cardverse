@@ -7,6 +7,8 @@ import type {
   ResourceDefinition,
   PhaseDefinition,
   EventResponse,
+  GameEvent,
+  EventTypeValue,
 } from "@cardverse/shared";
 
 function createConfig(overrides?: Partial<GameConfig>): GameConfig {
@@ -273,8 +275,8 @@ describe("Game", () => {
       cardDefs.set("card1", { id: "sha", name: "杀", category: "basic" });
       game.setCardDefinitions(cardDefs);
 
-      let capturedData: any;
-      game.eventBus.on("*", async (event) => {
+      let capturedData: Record<string, unknown> | undefined;
+      game.eventBus.on("*", async (event: GameEvent) => {
         if (event.type === EventType.CARD_PLAYED) {
           capturedData = event.data;
         }
@@ -283,10 +285,10 @@ describe("Game", () => {
       await game.playCard("p1", "card1", ["p2"]);
 
       expect(capturedData).toBeDefined();
-      expect(capturedData.cardId).toBe("card1");
-      expect(capturedData.playerId).toBe("p1");
-      expect(capturedData.targets).toEqual(["p2"]);
-      expect(capturedData.cardType).toBeDefined();
+      expect(capturedData!.cardId).toBe("card1");
+      expect(capturedData!.playerId).toBe("p1");
+      expect(capturedData!.targets).toEqual(["p2"]);
+      expect(capturedData!.cardType).toBeDefined();
     });
 
     it("should resolve cardType from card definitions", async () => {
@@ -331,8 +333,8 @@ describe("Game", () => {
       game.initPhases(testPhases);
       await game.start();
 
-      let capturedType: any;
-      game.eventBus.on("*", async (event) => {
+      let capturedType: EventTypeValue | undefined;
+      game.eventBus.on("*", async (event: GameEvent) => {
         capturedType = event.type;
       });
 

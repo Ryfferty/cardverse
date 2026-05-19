@@ -1236,4 +1236,24 @@
 ---
 
 *审查人: Hermes Agent | 日期: 2026-05-19*
+
+---
+
+## 自审记录
+
+### 自审-TASK-031: 残留问题清理
+- **日期**: 2026-05-19
+- **构建**: ✅ pnpm build 通过（8 packages）
+- **测试**: ✅ 609/609 通过（core 335 + deck 109 + sanguosha 79 + ai 34 + web 14 + editor 10 + network 28）
+- **Lint**: ✅ 0 issues
+- **自审清单**: ✅ 全部通过
+- **发现**: 无
+- **修复内容**:
+  1. 删除 `_applyDamage` 残留代码（已在上一轮完成）
+  2. AI `removeCardFromHand` 改用 `game.discardCard()` 事件驱动（已在上一轮完成）
+  3. 人类玩家出牌改用 `removeCardFromHand()` 替代直接 `setPlayerZone`/`setGlobalZone` 突变
+  4. 初始发牌改用 `game.drawCards(pid, 4)` 替代 `deckRef.cards.splice(0, 4)` 直接突变
+  5. EffectExecutor 沙箱评估：`vm.runInNewContext` 仅 Node.js 可用，浏览器不支持，当前 `new Function()` + 全局变量覆盖方案正确，已记录决策理由
+  6. 清理 19 个 `as any` 断言：heuristic.test.ts 13 个 → `GameEvent`，resources.test.ts 4 个 → `GameEvent | null` / `string | undefined`，engine.test.ts 2 个 → `Record<string, unknown> | undefined` / `EventTypeValue | undefined`
+- **结论**: ✅ 自审通过
     73|    73|

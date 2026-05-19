@@ -351,31 +351,9 @@ async function main(): Promise<void> {
   }
 
   function removeCardFromHand(pid: PlayerId, cardId: CardInstanceId): void {
-    const state = game.getState();
-    const handZone = state.players.get(pid)?.zones.get("hand");
-    if (!handZone) return;
-
-    const newCards = handZone.cards.filter((c) => c !== cardId);
-    game.state.setPlayerZone(pid, "hand", {
-      definition: handZone.definition,
-      cards: newCards,
-      playerId: pid,
+    game.discardCard(pid, cardId).catch((e) => {
+      console.warn("discardCard failed:", e instanceof Error ? e.message : String(e));
     });
-
-    const discardZone = state.globalZones.get("discard");
-    if (discardZone) {
-      game.state.setGlobalZone("discard", {
-        definition: discardZone.definition,
-        cards: [...discardZone.cards, cardId],
-      });
-    }
-
-    game.state.updatePlayerHandCount(pid);
-  }
-
-  function _applyDamage(pid: PlayerId, amount: number): void {
-    const current = game.resources.getValue(pid, "health") ?? 0;
-    game.resources.set(pid, "health", Math.max(0, current - amount));
   }
 
   async function runAITurn(aiPlayerId: PlayerId): Promise<void> {
@@ -479,25 +457,7 @@ async function main(): Promise<void> {
       const alivePlayers = getAlivePlayers();
       const targets = alivePlayers.filter((p) => p !== humanPid).slice(0, 1);
 
-      // Remove card from hand first
-      const state = game.getState();
-      const handZone = state.players.get(humanPid)?.zones.get("hand");
-      if (handZone) {
-        const newCards = handZone.cards.filter((c) => c !== cardIds[0]);
-        game.state.setPlayerZone(humanPid, "hand", {
-          definition: handZone.definition,
-          cards: newCards,
-          playerId: humanPid,
-        });
-        const discardZone = state.globalZones.get("discard");
-        if (discardZone) {
-          game.state.setGlobalZone("discard", {
-            definition: discardZone.definition,
-            cards: [...discardZone.cards, cardIds[0]],
-          });
-        }
-        game.state.updatePlayerHandCount(humanPid);
-      }
+      removeCardFromHand(humanPid, cardIds[0]);
 
       game.playCard(humanPid, cardIds[0], targets).catch((e) => {
         console.error("Play card failed:", e);
@@ -709,20 +669,11 @@ async function main(): Promise<void> {
     updateGameUI();
   });
 
-  // Initial deal: give each player 4 cards
-  const deckRef = game.getState().globalZones.get("deck");
-  if (deckRef && deckRef.cards.length >= 16) {
-    for (const pid of players) {
-      const drawn = deckRef.cards.splice(0, 4);
-      const handZone = game.getState().players.get(pid)?.zones.get("hand");
-      if (handZone) {
-        game.state.setPlayerZone(pid, "hand", {
-          definition: handZone.definition,
-          cards: [...handZone.cards, ...drawn],
-          playerId: pid,
-        });
-      }
-      game.state.updatePlayerHandCount(pid);
+  for (const pid of players) {
+    try {
+      await game.drawCards(pid, 4);
+    } catch (e) {
+      console.warn("Initial deal failed for", pid, ":", e instanceof Error ? e.message : String(e));
     }
   }
 

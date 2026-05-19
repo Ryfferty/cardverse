@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { HeuristicAI } from "./heuristic.js";
 import type { AIGameView, AIPlayerInfo, HandCard } from "./types.js";
+import type { GameEvent } from "@cardverse/shared";
+import { EventType } from "@cardverse/shared";
 
 function makePlayer(
   id: string,
@@ -301,9 +303,9 @@ describe("HeuristicAI", () => {
       });
       ai.setHandCards([makeHandCard("inst_shan_1", "shan")]);
 
-      const event: any = {
+      const event: GameEvent = {
         id: "ev_1",
-        type: "card:played",
+        type: EventType.CARD_PLAYED,
         data: { cardType: "sha", cardId: "inst_sha_enemy" },
         timestamp: Date.now(),
         stackDepth: 1,
@@ -320,9 +322,9 @@ describe("HeuristicAI", () => {
       const view = makeGameView("p1");
       ai.setHandCards([makeHandCard("inst_sha_1", "sha")]);
 
-      const event: any = {
+      const event: GameEvent = {
         id: "ev_nanman",
-        type: "card:played",
+        type: EventType.CARD_PLAYED,
         data: { cardType: "nanman", cardId: "inst_nanman" },
         timestamp: Date.now(),
         stackDepth: 1,
@@ -339,9 +341,9 @@ describe("HeuristicAI", () => {
       const view = makeGameView("p1");
       ai.setHandCards([makeHandCard("inst_shan_1", "shan")]);
 
-      const event: any = {
+      const event: GameEvent = {
         id: "ev_wanjian",
-        type: "card:played",
+        type: EventType.CARD_PLAYED,
         data: { cardType: "wanjian", cardId: "inst_wanjian" },
         timestamp: Date.now(),
         stackDepth: 1,
@@ -358,9 +360,9 @@ describe("HeuristicAI", () => {
       const view = makeGameView("p1");
       ai.setHandCards([makeHandCard("inst_sha_1", "sha")]);
 
-      const event: any = {
+      const event: GameEvent = {
         id: "ev_req",
-        type: "response:requested",
+        type: EventType.RESPONSE_REQUESTED,
         data: { type: "counter_sha" },
         timestamp: Date.now(),
         stackDepth: 1,
@@ -377,9 +379,9 @@ describe("HeuristicAI", () => {
       const view = makeGameView("p1");
       ai.setHandCards([]);
 
-      const event: any = {
+      const event: GameEvent = {
         id: "ev_req",
-        type: "response:requested",
+        type: EventType.RESPONSE_REQUESTED,
         data: { type: "counter_sha" },
         timestamp: Date.now(),
         stackDepth: 1,
@@ -405,9 +407,9 @@ describe("HeuristicAI", () => {
         makeHandCard("inst_sha_2", "sha"),
       ]);
 
-      const event: any = {
+      const event: GameEvent = {
         id: "ev_sha",
-        type: "card:played",
+        type: EventType.CARD_PLAYED,
         data: { cardType: "sha", cardId: "inst_sha_enemy" },
         timestamp: Date.now(),
         stackDepth: 1,
@@ -430,9 +432,9 @@ describe("HeuristicAI", () => {
       });
       ai.setHandCards([makeHandCard("inst_shan_1", "shan")]);
 
-      const event: any = {
+      const event: GameEvent = {
         id: "ev_sha",
-        type: "card:played",
+        type: EventType.CARD_PLAYED,
         data: { cardType: "sha", cardId: "inst_sha_enemy" },
         timestamp: Date.now(),
         stackDepth: 1,
@@ -448,9 +450,9 @@ describe("HeuristicAI", () => {
       const view = makeGameView("p1");
       ai.setHandCards([makeHandCard("inst_shan_1", "shan")]);
 
-      const event: any = {
+      const event: GameEvent = {
         id: "ev_dismantle",
-        type: "card:played",
+        type: EventType.CARD_PLAYED,
         data: { cardType: "dismantle", cardId: "inst_dismantle" },
         timestamp: Date.now(),
         stackDepth: 1,
@@ -478,9 +480,9 @@ describe("HeuristicAI", () => {
 
       await ai.onGameEnd(view, "p1");
 
-      const shaEvent: any = {
+      const shaEvent: GameEvent = {
         id: "ev_sha",
-        type: "card:played",
+        type: EventType.CARD_PLAYED,
         data: { cardType: "sha", cardId: "inst_sha_enemy" },
         timestamp: Date.now(),
         stackDepth: 1,
@@ -498,9 +500,9 @@ describe("HeuristicAI", () => {
       const view = makeGameView("p1");
       ai.setHandCards([makeHandCard("inst_sha_1", "sha")]);
 
-      const shaEvent: any = {
+      const shaEvent: GameEvent = {
         id: "ev_sha",
-        type: "card:played",
+        type: EventType.CARD_PLAYED,
         data: { cardType: "sha", cardId: "inst_sha_enemy" },
         timestamp: Date.now(),
         stackDepth: 1,
@@ -571,9 +573,9 @@ describe("HeuristicAI", () => {
       const view = makeGameView("p1");
       ai.setHandCards([makeHandCard("inst_wuxie_1", "wuxie", "trick", "无懈可击")]);
 
-      const event: any = {
+      const event: GameEvent = {
         id: "ev_dismantle",
-        type: "card:played",
+        type: EventType.CARD_PLAYED,
         data: { cardType: "dismantle", cardId: "inst_dismantle" },
         timestamp: Date.now(),
         stackDepth: 1,
@@ -590,9 +592,9 @@ describe("HeuristicAI", () => {
       const view = makeGameView("p1");
       ai.setHandCards([makeHandCard("inst_wuxie_1", "wuxie", "trick", "无懈可击")]);
 
-      const event: any = {
+      const event: GameEvent = {
         id: "ev_duel",
-        type: "card:played",
+        type: EventType.CARD_PLAYED,
         data: { cardType: "duel", cardId: "inst_duel" },
         timestamp: Date.now(),
         stackDepth: 1,
@@ -609,9 +611,9 @@ describe("HeuristicAI", () => {
       const view = makeGameView("p1");
       ai.setHandCards([makeHandCard("inst_wuxie_1", "wuxie", "trick", "无懈可击")]);
 
-      const event: any = {
+      const event: GameEvent = {
         id: "ev_taoyuan",
-        type: "card:played",
+        type: EventType.CARD_PLAYED,
         data: { cardType: "taoyuan", cardId: "inst_taoyuan" },
         timestamp: Date.now(),
         stackDepth: 1,
