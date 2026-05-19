@@ -1,5 +1,6 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { Game } from "@cardverse/core";
+import type { GameEvent } from "@cardverse/shared";
 import type { HostConfig, NetworkMessage, ConnectionHandler, NetworkStatus, StatusHandler } from "./types.js";
 import { RoomManager } from "./room.js";
 import { MessageCodec } from "./codec.js";
@@ -14,6 +15,9 @@ export class HostServer {
   private onMessage: ConnectionHandler | null = null;
   private onStatusChange: StatusHandler | null = null;
   private status: NetworkStatus = "disconnected";
+  private syncUnsubscribe: (() => void) | null = null;
+  private eventLog: NetworkMessage[] = [];
+  private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(hostId: string, config: HostConfig) {
     this.hostId = hostId;
@@ -50,6 +54,16 @@ export class HostServer {
   }
 
   async stop(): Promise<void> {
+    if (this.syncUnsubscribe) {
+      this.syncUnsubscribe();
+      this.syncUnsubscribe = null;
+    }
+
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+
     return new Promise((resolve) => {
       for (const [_clientId, client] of this.clients) {
         client.ws.close();
@@ -71,7 +85,11 @@ export class HostServer {
   }
 
   syncGame(game: Game): void {
-    game.eventBus.on("*", (event) => {
+    if (this.syncUnsubscribe) {
+      this.syncUnsubscribe();
+    }
+
+    const handler = (event: GameEvent): void => {
       const msg: NetworkMessage = {
         type: "game_sync",
         payload: {
@@ -81,11 +99,39 @@ export class HostServer {
           target: event.target,
           source: event.source,
           stackDepth: event.stackDepth,
+          seq: this.eventLog.length,
         },
         timestamp: event.timestamp,
       };
+      this.eventLog.push(msg);
       this.broadcast(msg);
-    });
+    };
+
+    game.eventBus.on("*", handler);
+
+    this.syncUnsubscribe = () => {
+      game.eventBus.off("*", handler);
+    };
+  }
+
+  startHeartbeat(intervalMs: number = 15000): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+    }
+
+    this.heartbeatInterval = setInterval(() => {
+      const ping: NetworkMessage = {
+        type: "ping",
+        payload: { seq: this.eventLog.length },
+        timestamp: Date.now(),
+      };
+      this.broadcast(ping);
+    }, intervalMs);
+  }
+
+  getEventLogSince(sinceSeq: number): NetworkMessage[] {
+    if (sinceSeq < 0 || sinceSeq >= this.eventLog.length) return [];
+    return this.eventLog.slice(sinceSeq);
   }
 
   broadcast(message: NetworkMessage): void {
@@ -191,6 +237,7 @@ export class HostServer {
     const playerId = (msg.payload.playerId as string) || clientId;
     const playerName = (msg.payload.playerName as string) || playerId;
     const requestRoomCode = (msg.payload.roomCode as string) || this.roomCode;
+    const lastSeq = (msg.payload.lastSeq as number) ?? -1;
 
     let response: NetworkMessage;
 
@@ -202,6 +249,50 @@ export class HostServer {
       };
       ws.send(MessageCodec.encode(response));
       ws.close();
+      return;
+    }
+
+    const isReconnect = this.roomManager.getRoom(this.roomCode)?.players.some(
+      (p) => p.playerId === playerId
+    ) ?? false;
+
+    if (isReconnect) {
+      this.roomManager.setPlayerConnected(this.roomCode, playerId, true);
+
+      const existingClient = Array.from(this.clients.values()).find((c) => c.playerId === playerId);
+      if (existingClient) {
+        existingClient.ws.close();
+      }
+
+      const client = this.clients.get(clientId);
+      if (client) {
+        client.playerId = playerId;
+      }
+
+      response = {
+        type: "join_accepted",
+        payload: {
+          roomCode: this.roomCode,
+          hostId: this.hostId,
+          players: this.roomManager.getRoom(this.roomCode)?.players ?? [],
+          isReconnect: true,
+        },
+        timestamp: Date.now(),
+      };
+      ws.send(MessageCodec.encode(response));
+
+      if (lastSeq >= 0 && this.eventLog.length > lastSeq) {
+        const missedEvents = this.getEventLogSince(lastSeq);
+        for (const event of missedEvents) {
+          try {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(MessageCodec.encode(event));
+            }
+          } catch {
+            break;
+          }
+        }
+      }
       return;
     }
 

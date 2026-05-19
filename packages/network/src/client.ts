@@ -27,6 +27,7 @@ export class ClientConnection {
   private reconnectAttempts: number = 0;
   private maxReconnectAttempts: number = 5;
   private wsCtor: typeof WebSocket;
+  private lastSeq: number = -1;
 
   constructor(playerId: string, config: ClientConfig) {
     this.playerId = playerId;
@@ -64,6 +65,7 @@ export class ClientConnection {
             playerId: this.playerId,
             playerName: this.playerName,
             roomCode: roomCode ?? "",
+            lastSeq: this.lastSeq,
           },
           timestamp: Date.now(),
         };
@@ -102,6 +104,20 @@ export class ClientConnection {
         const data = typeof event.data === "string" ? event.data : "";
         const messages = this.codec.feed(data);
         for (const msg of messages) {
+          if (msg.type === "game_sync" && typeof msg.payload.seq === "number") {
+            this.lastSeq = msg.payload.seq as number;
+          }
+
+          if (msg.type === "ping") {
+            const pong: NetworkMessage = {
+              type: "pong",
+              payload: { seq: this.lastSeq },
+              timestamp: Date.now(),
+            };
+            this.send(pong);
+            continue;
+          }
+
           if (this.onMessageHandler) {
             this.onMessageHandler(msg);
           }
@@ -160,6 +176,10 @@ export class ClientConnection {
 
   getStatus(): NetworkStatus {
     return this.status;
+  }
+
+  getLastSeq(): number {
+    return this.lastSeq;
   }
 
   private setStatus(status: NetworkStatus): void {

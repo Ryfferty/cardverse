@@ -368,3 +368,170 @@ describe("HostServer.broadcast ordering", () => {
     await host.stop();
   }, 10000);
 });
+
+describe("syncGame unsubscribe", () => {
+  it("should unsubscribe from EventBus on stop", async () => {
+    const port = getPort();
+    const host = new HostServer("host_unsub", { port, maxPlayers: 4, roomCode: "UNSUB" });
+    await host.start();
+
+    const { Game } = await import("@cardverse/core");
+    const game = Game.create({ deckId: "test", playerCount: 4 });
+    game.addPlayer("p1", "P1");
+    game.addPlayer("p2", "P2");
+    await game.start();
+
+    host.syncGame(game);
+    await host.stop();
+
+    const listenerCount = (game.eventBus as unknown as { handlers: Map<string, Set<unknown>> }).handlers?.get("*")?.size ?? 0;
+    expect(listenerCount).toBe(0);
+  }, 10000);
+
+  it("should replace previous syncGame subscription", async () => {
+    const port = getPort();
+    const host = new HostServer("host_resync", { port, maxPlayers: 4, roomCode: "RESYNC" });
+    await host.start();
+
+    const { Game } = await import("@cardverse/core");
+    const game = Game.create({ deckId: "test", playerCount: 4 });
+    game.addPlayer("p1", "P1");
+    game.addPlayer("p2", "P2");
+    await game.start();
+
+    host.syncGame(game);
+    host.syncGame(game);
+
+    const listenerCount = (game.eventBus as unknown as { handlers: Map<string, Set<unknown>> }).handlers?.get("*")?.size ?? 0;
+    expect(listenerCount).toBe(1);
+
+    await host.stop();
+  }, 10000);
+});
+
+describe("event log and reconnection compensation", () => {
+  it("should track event log with sequence numbers", async () => {
+    const port = getPort();
+    const host = new HostServer("host_seq", { port, maxPlayers: 4, roomCode: "SEQLOG" });
+    await host.start();
+
+    const { Game } = await import("@cardverse/core");
+    const game = Game.create({ deckId: "test", playerCount: 4 });
+    game.addPlayer("p1", "P1");
+    game.addPlayer("p2", "P2");
+    await game.start();
+
+    host.syncGame(game);
+    await game.playCard("p1", "sha_1", ["p2"]);
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    const log = host.getEventLogSince(0);
+    expect(log.length).toBeGreaterThanOrEqual(1);
+
+    const firstMsg = log[0];
+    expect(firstMsg.payload.seq).toBe(0);
+
+    await host.stop();
+  }, 10000);
+
+  it("should track lastSeq on client from game_sync messages", async () => {
+    const port = getPort();
+    const host = new HostServer("host_lseq", { port, maxPlayers: 4, roomCode: "LSEQ" });
+    await host.start();
+
+    const client = new ClientConnection("player_lseq", {
+      host: "127.0.0.1",
+      port,
+      playerName: "LSeqClient",
+    });
+    await client.connect("LSEQ");
+
+    expect(client.getLastSeq()).toBe(-1);
+
+    const { Game } = await import("@cardverse/core");
+    const game = Game.create({ deckId: "test", playerCount: 4 });
+    game.addPlayer("p1", "P1");
+    game.addPlayer("p2", "P2");
+    await game.start();
+
+    host.syncGame(game);
+    await game.playCard("p1", "sha_1", ["p2"]);
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    expect(client.getLastSeq()).toBeGreaterThanOrEqual(0);
+
+    client.disconnect();
+    await host.stop();
+  }, 15000);
+});
+
+describe("heartbeat mechanism", () => {
+  it("should send ping messages at interval", async () => {
+    const port = getPort();
+    const host = new HostServer("host_hb", { port, maxPlayers: 4, roomCode: "HBEAT" });
+    await host.start();
+
+    const rawMsgs: string[] = [];
+    const client = new ClientConnection("player_hb", {
+      host: "127.0.0.1",
+      port,
+      playerName: "HBClient",
+    });
+    await client.connect("HBEAT");
+
+    const internalWs = (client as unknown as { ws: import("ws").WebSocket }).ws;
+    if (internalWs) {
+      internalWs.on("message", (data: Buffer) => {
+        rawMsgs.push(data.toString());
+      });
+    }
+
+    host.startHeartbeat(200);
+
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    const pingMsgs = rawMsgs.filter((r) => {
+      try {
+        const parsed = JSON.parse(r) as { type: string };
+        return parsed.type === "ping";
+      } catch {
+        return false;
+      }
+    });
+    expect(pingMsgs.length).toBeGreaterThanOrEqual(1);
+
+    client.disconnect();
+    await host.stop();
+  }, 10000);
+
+  it("should respond to ping with pong", async () => {
+    const port = getPort();
+    const host = new HostServer("host_pong", { port, maxPlayers: 4, roomCode: "PONG" });
+
+    const hostMsgs: NetworkMessage[] = [];
+    host.onConnection((msg) => {
+      hostMsgs.push(msg);
+    });
+
+    await host.start();
+
+    const client = new ClientConnection("player_pong", {
+      host: "127.0.0.1",
+      port,
+      playerName: "PongClient",
+    });
+    await client.connect("PONG");
+
+    host.broadcast({ type: "ping", payload: { seq: 0 }, timestamp: Date.now() });
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    const pongs = hostMsgs.filter((m) => m.type === "pong");
+    expect(pongs.length).toBeGreaterThanOrEqual(1);
+
+    client.disconnect();
+    await host.stop();
+  }, 10000);
+});
