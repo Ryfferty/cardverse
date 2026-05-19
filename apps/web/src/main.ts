@@ -260,7 +260,7 @@ async function main(): Promise<void> {
       const p = state.players.get(pid)!;
       const handZone = p.zones.get("hand");
 
-      let faction = "";
+      let faction: string;
       if (pid === aiPlayerId) {
         faction = "self";
       } else if (isHuman && pid === getHumanPlayerId()) {

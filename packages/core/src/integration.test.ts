@@ -505,12 +505,11 @@ describe("Sanguosha Integration", () => {
     }
 
     let turnPlayerIndex = 0;
-    let ended = false;
+    const ended = false;
 
     for (let turn = 0; turn < MAX_TURNS && !ended; turn++) {
       const alive = getAlivePlayers(game);
       if (alive.length <= 1) {
-        ended = true;
         break;
       }
 

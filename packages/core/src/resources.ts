@@ -5,7 +5,7 @@ import {
   type PlayerId,
   EventType,
 } from "@cardverse/shared";
-import { EventBus } from "./events.js";
+import type { EventBus } from "./events.js";
 
 /**
  * ResourceManager — manages player resources (HP, mana, custom).
