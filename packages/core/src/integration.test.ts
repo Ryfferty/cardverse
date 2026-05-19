@@ -216,13 +216,15 @@ function buildGameView(game: Game, selfId: PlayerId): AIGameView {
   const players = playerIds.map((pid, idx) => {
     const p = state.players.get(pid)!;
     const handZone = p.zones.get("hand");
+    const role = game.getPlayerRole(pid);
+    const faction = role === "lord" || role === "loyalist" ? "shu" : role === "rebel" ? "wei" : "qun";
     return {
       playerId: p.id,
       handCardIds: handZone?.cards ?? [],
       handCount: p.handCount,
       health: game.resources.getValue(p.id, "health") ?? 0,
       maxHealth: game.resources.getValue(p.id, "maxHealth") ?? 4,
-      faction: p.faction ?? "",
+      faction,
       alive: p.status === "alive",
       seatIndex: idx,
     };
@@ -439,6 +441,8 @@ describe("Sanguosha Integration", () => {
 
     game.initPhases(deckPhases);
     await game.start();
+
+    game.assignRoles();
     expect(game.getState().status).toBe("running");
 
     for (const pid of playerIds) {
@@ -494,6 +498,8 @@ describe("Sanguosha Integration", () => {
     game.initPhases(deckPhases);
     await game.start();
 
+    game.assignRoles();
+
     for (const pid of playerIds) {
       dealCards(game, pid, 4);
     }
@@ -543,6 +549,8 @@ describe("Sanguosha Integration", () => {
     game.initPhases(deckPhases);
     await game.start();
 
+    game.assignRoles();
+
     for (const pid of playerIds) {
       dealCards(game, pid, 4);
     }
@@ -550,6 +558,7 @@ describe("Sanguosha Integration", () => {
     let turnPlayerIndex = 0;
 
     for (let turn = 0; turn < MAX_TURNS; turn++) {
+      // "should not crash" test
       const alive = getAlivePlayers(game);
       if (alive.length <= 1) break;
 

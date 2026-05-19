@@ -4,6 +4,8 @@ import {
   type GameEvent,
   type PlayerState,
   type PlayerId,
+  type PlayerRole,
+  type RoleAssignment,
   type ZoneDefinition,
   type ResourceDefinition,
   type PhaseDefinition,
@@ -24,6 +26,7 @@ import { ResourceManager } from "./resources.js";
 import { EffectExecutor, type ExecutorDependencies, type EffectExecutionResult } from "./effectExecutor.js";
 import type { EffectDefinition } from "@cardverse/deck";
 import { RangeManager, type RangeModifiers } from "./range.js";
+import { RoleManager } from "./roles.js";
 
 let gameIdCounter = 0;
 
@@ -36,6 +39,7 @@ export class Game {
   readonly phases: PhaseManager;
   readonly resources: ResourceManager;
   readonly effectExecutor: EffectExecutor;
+  readonly roleManager: RoleManager;
 
   private maxEffectSteps: number;
   private responseTimeout: number;
@@ -58,6 +62,7 @@ export class Game {
     this.phases = new PhaseManager();
     this.resources = new ResourceManager(this.eventBus);
     this.effectExecutor = new EffectExecutor(this.createExecutorDeps());
+    this.roleManager = new RoleManager();
   }
 
   static create(config: GameConfig): Game {
@@ -364,6 +369,15 @@ export class Game {
 
   getPlayerHandCount(playerId: PlayerId): number {
     return this.getPlayerHandCards(playerId).length;
+  }
+
+  assignRoles(): RoleAssignment[] {
+    const playerIds = Array.from(this.getState().players.keys());
+    return this.roleManager.assignRoles(playerIds);
+  }
+
+  getPlayerRole(playerId: PlayerId): PlayerRole | undefined {
+    return this.roleManager.getRole(playerId);
   }
 
   /**

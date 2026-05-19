@@ -13,6 +13,16 @@ export type CardInstanceId = string;
 /** Unique identifier for a player in a game */
 export type PlayerId = string;
 
+/** Player role in Sanguosha-like games */
+export type PlayerRole = "lord" | "loyalist" | "rebel" | "spy";
+
+/** Role assignment for a player */
+export interface RoleAssignment {
+  playerId: PlayerId;
+  role: PlayerRole;
+  revealed: boolean;
+}
+
 /** Unique identifier for a zone */
 export type ZoneId = string;
 
