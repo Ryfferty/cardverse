@@ -1257,6 +1257,22 @@
   6. 清理 19 个 `as any` 断言：heuristic.test.ts 13 个 → `GameEvent`，resources.test.ts 4 个 → `GameEvent | null` / `string | undefined`，engine.test.ts 2 个 → `Record<string, unknown> | undefined` / `EventTypeValue | undefined`
 - **结论**: ✅ 自审通过
 
+### 自审-TASK-035: 卡牌视觉增强
+- **日期**: 2026-05-19
+- **构建**: ✅ pnpm build 通过
+- **测试**: ✅ 636/636 通过
+- **Lint**: ✅ 0 issues
+- **自审清单**: ✅ 全部通过
+- **发现**: 无
+- **修复内容**:
+  1. CardView 增强花色（♠♥♣♦）和点数显示，红黑花色区分
+  2. 不同类型卡牌不同底色（基本牌暗红、锦囊牌暗蓝、装备牌暗绿）
+  3. 选中卡牌高亮（黄色边框 + 内发光 + 上浮 16px）+ 悬停高亮（上浮 6px）
+  4. 装备区卡牌缩小显示（compact 模式：60x38）
+  5. 新增 `layoutHandCards` 和 `layoutEquipmentCards` 布局函数
+  6. buildHandCards 传入花色和点数信息
+- **结论**: ✅ 自审通过
+
 ### 自审-TASK-034: 游戏日志面板
 - **日期**: 2026-05-19
 - **构建**: ✅ pnpm build 通过

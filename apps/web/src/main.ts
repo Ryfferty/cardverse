@@ -64,6 +64,8 @@ function buildHandCards(allCards: DeckCard[], instanceIds: string[]): CardData[]
       name: card?.name ?? defId,
       category,
       type: category === "basic" ? defId : category === "equipment" ? "equipment" : "trick",
+      suit: (card as Record<string, unknown> | undefined)?.suit as string | undefined,
+      number: (card as Record<string, unknown> | undefined)?.number as string | undefined,
     };
   });
 }
