@@ -596,79 +596,36 @@
 **架构**: TCP + JSON 换行分隔协议，Host/Client 分离，RoomManager 房间管理。
 
 ### REVIEW-063: 仅支持 Node.js TCP，无法在浏览器运行
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-016
 - **文件**: `packages/network/src/host.ts`, `client.ts`
 - **日期**: 2026-05-18
+- **修复**: 2026-05-19，commit 84b6cb7
 - **问题**: 使用 `node:net` 的 TCP，浏览器无法运行。Web 应用局域网联机需要 WebSocket 或 WebRTC。
 - **建议**: 改为 WebSocket（`ws` 库 + 浏览器原生 WebSocket）。
+- **修复内容**: host.ts 改为 `ws` WebSocketServer，client.ts 使用全局 `WebSocket`（浏览器原生 / Node.js polyfill），codec 保持不变。
 - **优先级**: 🔴 高（浏览器兼容性）
 
 ### REVIEW-064: 未集成 core 引擎，游戏状态同步仅为消息层
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-016
 - **文件**: `packages/network/`
 - **日期**: 2026-05-18
+- **修复**: 2026-05-19，commit 84b6cb7
 - **问题**: 仅依赖 `@cardverse/shared`，无 `@cardverse/core`。消息 payload 为通用 `Record<string, unknown>`，未与 Game 引擎集成。
 - **建议**: 添加 core 依赖，实现 `game.on("*", handler) → broadcast()` 联动。
+- **修复内容**: 添加 `@cardverse/core` 依赖，HostServer 新增 `syncGame(game)` 方法，监听 `game.eventBus.on("*")` 并以 `game_sync` 消息类型广播到所有客户端。
 - **优先级**: 🟡 中
 
 ### REVIEW-065: RoomManager 用 static 存储，不支持多实例
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-016
 - **文件**: `packages/network/src/room.ts`
 - **日期**: 2026-05-18
+- **修复**: 2026-05-19，commit 84b6cb7
 - **问题**: 所有房间数据存在静态 Map（内存），不支持多实例/进程。
 - **建议**: 改为实例级存储或注入存储接口。
-- **优先级**: 🟡 中
-
----
-
----
-
-## REVIEW-060~062 修复验证
-
-**结论**: ❌ **3 项全部未修复**
-
-| 审查 | 问题 | 验证 | 说明 |
-|------|------|------|------|
-| 060 | 未集成 core/ai | ❌ 未修复 | package.json 声明了依赖但源码无任何 @cardverse/* import |
-| 061 | 无测试文件 | ❌ 未修复 | apps/web/ 下零 .test.ts 文件 |
-| 062 | 无 tsconfig.json | ❌ 未修复 | 文件不存在 |
-
----
-
-## TASK-016 审查（局域网联机基础）
-
-**测试**: ✅ 21/21 通过 | **构建**: ✅ 通过
-
-**架构**: TCP + JSON 换行分隔协议，Host/Client 分离，RoomManager 房间管理。
-
-### REVIEW-063: 仅支持 Node.js TCP，无法在浏览器运行
-- **状态**: ❌ 未处理
-- **关联任务**: TASK-016
-- **文件**: `packages/network/src/host.ts`, `client.ts`
-- **日期**: 2026-05-18
-- **问题**: 使用 `node:net` 的 TCP，浏览器无法运行。Web 应用局域网联机需要 WebSocket 或 WebRTC。
-- **建议**: 改为 WebSocket（`ws` 库 + 浏览器原生 WebSocket）。
-- **优先级**: 🔴 高（浏览器兼容性）
-
-### REVIEW-064: 未集成 core 引擎，游戏状态同步仅为消息层
-- **状态**: ❌ 未处理
-- **关联任务**: TASK-016
-- **文件**: `packages/network/`
-- **日期**: 2026-05-18
-- **问题**: 仅依赖 `@cardverse/shared`，无 `@cardverse/core`。消息 payload 为通用 `Record<string, unknown>`，未与 Game 引擎集成。
-- **建议**: 添加 core 依赖，实现 `game.on("*", handler) → broadcast()` 联动。
-- **优先级**: 🟡 中
-
-### REVIEW-065: RoomManager 用 static 存储，不支持多实例
-- **状态**: ❌ 未处理
-- **关联任务**: TASK-016
-- **文件**: `packages/network/src/room.ts`
-- **日期**: 2026-05-18
-- **问题**: 所有房间数据存在静态 Map（内存），不支持多实例/进程。
-- **建议**: 改为实例级存储或注入存储接口。
+- **修复内容**: RoomManager 全部方法从 static 改为实例方法，`rooms` 改为 `private` 实例属性。HostServer 在构造函数中通过 `new RoomManager()` 创建独立实例。
 - **优先级**: 🟡 中
 
 ---
