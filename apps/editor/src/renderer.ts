@@ -1,5 +1,5 @@
 import type { CardEditorData, CharacterEditorData } from "./editor.js";
-import { cardToJSON, characterToJSON, buildDeckExport, downloadJSON } from "./editor.js";
+import { cardToJSON, characterToJSON, buildDeckExport, downloadJSON, validateCardId, validateCharId } from "./editor.js";
 import type { EditorState } from "./state.js";
 import {
   CATEGORIES,
@@ -13,6 +13,8 @@ import {
   addCharacter,
   deleteCard,
   deleteCharacter,
+  getExistingCardIds,
+  getExistingCharIds,
 } from "./state.js";
 
 function h(tag: string, attrs: Record<string, string> = {}, children: (Node | string)[] = []): HTMLElement {
@@ -44,6 +46,40 @@ function formField(label: string, type: string, value: string, onChange: (v: str
   });
   input.addEventListener("input", () => onChange((input as HTMLInputElement).value));
   div.appendChild(input);
+  return div;
+}
+
+function formFieldWithValidation(
+  label: string,
+  value: string,
+  onChange: (v: string) => void,
+  validate: (v: string) => string | null
+): HTMLElement {
+  const div = h("div", { style: "margin-bottom:8px;" });
+  div.appendChild(h("label", { style: "display:block;font-size:12px;color:#8b949e;margin-bottom:3px;" }, [label]));
+  const input = h("input", {
+    type: "text",
+    value,
+    style: "width:100%;padding:6px 8px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:13px;",
+  });
+  const errorEl = h("div", { style: "font-size:11px;color:#da3633;margin-top:2px;min-height:14px;" }, []);
+  const updateValidation = () => {
+    const err = validate((input as HTMLInputElement).value);
+    if (err) {
+      errorEl.textContent = err;
+      input.style.borderColor = "#da3633";
+    } else {
+      errorEl.textContent = "";
+      input.style.borderColor = "#30363d";
+    }
+  };
+  input.addEventListener("input", () => {
+    onChange((input as HTMLInputElement).value);
+    updateValidation();
+  });
+  div.appendChild(input);
+  div.appendChild(errorEl);
+  setTimeout(updateValidation, 0);
   return div;
 }
 
@@ -84,7 +120,11 @@ function buildCardEditor(state: EditorState, rerender: () => void): HTMLElement 
 
   const div = h("div", { style: "padding:12px;overflow-y:auto;height:100%;" });
 
-  div.appendChild(formField("ID", "text", editingCard.id, (v) => (editingCard.id = v)));
+  div.appendChild(formFieldWithValidation("ID", editingCard.id, (v) => (editingCard.id = v), (v) => {
+    const idx = state.cards.indexOf(editingCard);
+    const existingIds = getExistingCardIds(state, idx >= 0 ? idx : undefined);
+    return validateCardId(v, existingIds);
+  }));
   div.appendChild(formField("名称", "text", editingCard.name, (v) => (editingCard.name = v)));
   div.appendChild(formSelect("类别", CATEGORIES, CATEGORY_LABELS, editingCard.category, (v) => (editingCard.category = v)));
   div.appendChild(formField("数量", "number", String(editingCard.count), (v) => {
@@ -142,7 +182,11 @@ function buildCharEditor(state: EditorState, rerender: () => void): HTMLElement 
 
   const div = h("div", { style: "padding:12px;overflow-y:auto;height:100%;" });
 
-  div.appendChild(formField("ID", "text", editingChar.id, (v) => (editingChar.id = v)));
+  div.appendChild(formFieldWithValidation("ID", editingChar.id, (v) => (editingChar.id = v), (v) => {
+    const idx = state.characters.indexOf(editingChar);
+    const existingIds = getExistingCharIds(state, idx >= 0 ? idx : undefined);
+    return validateCharId(v, existingIds);
+  }));
   div.appendChild(formField("名称", "text", editingChar.name, (v) => (editingChar.name = v)));
   div.appendChild(formSelect("势力", FACTIONS, FACTION_LABELS, editingChar.faction, (v) => (editingChar.faction = v)));
   div.appendChild(formField("体力上限", "number", String(editingChar.maxHp), (v) => {
@@ -210,10 +254,34 @@ function buildPreview(state: EditorState): HTMLElement {
     h("button", { style: buttonStyle("#1f6feb") }, ["导出卡组"]),
   ]);
   header.querySelector("button")!.onclick = () => {
-    const json = buildDeckExport(state.cards, state.characters);
-    downloadJSON(json, "cardverse-deck.json");
+    const json = buildDeckExport(state.cards, state.characters, state.deckId || undefined, state.deckName || undefined);
+    downloadJSON(json, `${state.deckId || "cardverse-deck"}.json`);
   };
   div.appendChild(header);
+
+  const deckIdInput = h("div", { style: "margin-bottom:8px;" });
+  deckIdInput.appendChild(h("label", { style: "display:block;font-size:12px;color:#8b949e;margin-bottom:3px;" }, ["卡组 ID"]));
+  const idField = h("input", {
+    type: "text",
+    value: state.deckId,
+    placeholder: "custom-deck",
+    style: "width:100%;padding:6px 8px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:13px;",
+  });
+  idField.addEventListener("input", () => (state.deckId = (idField as HTMLInputElement).value));
+  deckIdInput.appendChild(idField);
+  div.appendChild(deckIdInput);
+
+  const deckNameInput = h("div", { style: "margin-bottom:8px;" });
+  deckNameInput.appendChild(h("label", { style: "display:block;font-size:12px;color:#8b949e;margin-bottom:3px;" }, ["卡组名称"]));
+  const nameField = h("input", {
+    type: "text",
+    value: state.deckName,
+    placeholder: "自定义卡组",
+    style: "width:100%;padding:6px 8px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-size:13px;",
+  });
+  nameField.addEventListener("input", () => (state.deckName = (nameField as HTMLInputElement).value));
+  deckNameInput.appendChild(nameField);
+  div.appendChild(deckNameInput);
 
   const pre = h("pre", {
     style: "flex:1;background:#161b22;padding:12px;border-radius:6px;overflow:auto;font-size:12px;line-height:1.5;color:#7ee787;white-space:pre-wrap;word-break:break-all;",

@@ -29,6 +29,8 @@ export interface EditorState {
   characters: CharacterEditorData[];
   editingCard: CardEditorData | null;
   editingChar: CharacterEditorData | null;
+  deckId: string;
+  deckName: string;
 }
 
 export function createInitialState(): EditorState {
@@ -38,6 +40,8 @@ export function createInitialState(): EditorState {
     characters: [],
     editingCard: null,
     editingChar: null,
+    deckId: "",
+    deckName: "",
   };
 }
 

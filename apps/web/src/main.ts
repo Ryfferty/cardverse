@@ -145,8 +145,6 @@ async function main(): Promise<void> {
   game.initPhases(phases);
   await game.start();
 
-  let turnNumber = 1;
-
   const ui = new GameUI();
   await ui.init(appRoot, {
     playerName: playerNames[0],
@@ -166,10 +164,7 @@ async function main(): Promise<void> {
     }
 
     if (action === "endTurn") {
-      game.endTurn().then(() => {
-        turnNumber++;
-        updateGameState();
-      }).catch((e) => {
+      game.endTurn().catch((e) => {
         console.error("End turn failed:", e);
       });
     }
@@ -192,7 +187,7 @@ async function main(): Promise<void> {
     ui.update({
       playerName: playerNames[0],
       handCards,
-      turn: turnNumber,
+      turn: state.turnNumber,
       phase: currentPhaseId,
       health,
       maxHealth,

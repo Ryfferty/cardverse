@@ -1,4 +1,4 @@
-import type { CardDefinition, EffectContext } from "@cardverse/shared";
+import type { CardDefinition } from "@cardverse/shared";
 
 export interface CardEffectEditor {
   id: string;
@@ -8,11 +8,7 @@ export interface CardEffectEditor {
   script: string;
 }
 
-export interface CardEditorData {
-  id: string;
-  name: string;
-  category: string;
-  count: number;
+export interface CardEditorData extends Omit<CardDefinition, "description" | "effects"> {
   description: string;
   effects: CardEffectEditor[];
 }

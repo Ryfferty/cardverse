@@ -777,13 +777,11 @@
 - **优先级**: 🔴 高（类型不匹配）
 
 ### REVIEW-078: GameState.status 和 PlayerState.status 枚举值不完整（state.md）
-- **状态**: ❌ 未处理
+- **状态**: ✅ 已处理
 - **关联任务**: TASK-018
 - **文件**: `docs/api/state.md`
 - **日期**: 2026-05-19
-- **问题**: GameState.status 缺少 `"setup"` 和 `"paused"`；PlayerState.status 缺少 `"disconnected"`。
-- **建议**: 补充完整枚举值。
-- **优先级**: 🔴 高
+- **修复**: GameState.status 已包含 "waiting" / "setup" / "running" / "paused" / "finished"，PlayerState.status 已包含 "alive" / "dead" / "disconnected"（commit c9d32e9 修复，本次更新标记）。
 
 ### REVIEW-079: EventStack.push() 类型签名不精确（events.md）
 - **状态**: ✅ 已处理
@@ -840,32 +838,25 @@
 | 075 manifest.id | ✅ | ⚠️ | `buildDeckExport` 签名支持 `deckId?`/`deckName?`，但 **UI 无卡组名称输入框**，调用时未传参 |
 
 ### REVIEW-068 补充：endTurn 重复更新
-- **状态**: ❌ 未完全处理
+- **状态**: ✅ 已处理（二次修复）
 - **文件**: `apps/web/src/main.ts:169-174`
-- **问题**: `endTurn().then(() => { turnNumber++; updateGameState(); })` 与 `eventBus.on("*")` 双重触发 UI 更新。`turnNumber` 也应从引擎读取。
-- **建议**: 移除 `.then()` 中的 `updateGameState()`，`turnNumber` 改为 `game.getState().currentTurn?.turnNumber ?? 1`。
-- **优先级**: 🟡 中（功能正常但重复渲染）
+- **修复**: 移除 `.then()` 中的 `turnNumber++` 和 `updateGameState()`。`turnNumber` 改为 `state.turnNumber` 从引擎读取，UI 完全由 eventBus `"*"` 触发。
+- **优先级**: 🟡 中
 
 ### REVIEW-070 补充：import 未使用
-- **状态**: ❌ 未完全处理
+- **状态**: ✅ 已处理（二次修复）
 - **文件**: `apps/editor/src/editor.ts:1`
-- **问题**: `import type { CardDefinition, EffectContext } from "@cardverse/shared"` 但两个类型均未在文件中使用。`CardEditorData` 仍独立定义。
-- **建议**: 要么真正基于 `CardDefinition` 扩展编辑器类型，要么移除未使用的 import。
-- **优先级**: 🟡 中
+- **修复**: `CardEditorData` 改为 `extends Omit<CardDefinition, "description" | "effects">`，实际复用 shared 类型。移除未使用的 `EffectContext`。
 
 ### REVIEW-072 补充：校验函数是死代码
-- **状态**: ❌ 未完全处理
+- **状态**: ✅ 已处理（二次修复）
 - **文件**: `apps/editor/src/renderer.ts`
-- **问题**: `validateCardId`/`validateCharId` 已在 editor.ts 和 state.ts 中实现，但 renderer.ts 的保存流程未调用。
-- **建议**: 在保存按钮回调中调用 `validateEditingCard()`/`validateEditingChar()`，校验失败时显示错误提示。
-- **优先级**: 🟡 中
+- **修复**: 新增 `formFieldWithValidation` 组件，卡牌/角色 ID 输入框实时校验格式和唯一性，错误时红色边框+提示文字。
 
 ### REVIEW-075 补充：UI 无卡组名称输入
-- **状态**: ❌ 未完全处理
+- **状态**: ✅ 已处理（二次修复）
 - **文件**: `apps/editor/src/renderer.ts:213`
-- **问题**: `buildDeckExport(state.cards, state.characters)` 未传 deckId/deckName。
-- **建议**: 在导出区域添加卡组名称输入框。
-- **优先级**: 🟢 低
+- **修复**: 预览区新增「卡组 ID」和「卡组名称」输入框，`EditorState` 添加 `deckId`/`deckName` 字段。导出时传递给 `buildDeckExport()`。
 
 ---
 
