@@ -624,5 +624,170 @@
 
 ---
 
-*审查人: Hermes Agent | 日期: 2026-05-18*
+---
+
+## REVIEW-060~062 修复验证
+
+**结论**: ❌ **3 项全部未修复**
+
+| 审查 | 问题 | 验证 | 说明 |
+|------|------|------|------|
+| 060 | 未集成 core/ai | ❌ 未修复 | package.json 声明了依赖但源码无任何 @cardverse/* import |
+| 061 | 无测试文件 | ❌ 未修复 | apps/web/ 下零 .test.ts 文件 |
+| 062 | 无 tsconfig.json | ❌ 未修复 | 文件不存在 |
+
+---
+
+## TASK-016 审查（局域网联机基础）
+
+**测试**: ✅ 21/21 通过 | **构建**: ✅ 通过
+
+**架构**: TCP + JSON 换行分隔协议，Host/Client 分离，RoomManager 房间管理。
+
+### REVIEW-063: 仅支持 Node.js TCP，无法在浏览器运行
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-016
+- **文件**: `packages/network/src/host.ts`, `client.ts`
+- **日期**: 2026-05-18
+- **问题**: 使用 `node:net` 的 TCP，浏览器无法运行。Web 应用局域网联机需要 WebSocket 或 WebRTC。
+- **建议**: 改为 WebSocket（`ws` 库 + 浏览器原生 WebSocket）。
+- **优先级**: 🔴 高（浏览器兼容性）
+
+### REVIEW-064: 未集成 core 引擎，游戏状态同步仅为消息层
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-016
+- **文件**: `packages/network/`
+- **日期**: 2026-05-18
+- **问题**: 仅依赖 `@cardverse/shared`，无 `@cardverse/core`。消息 payload 为通用 `Record<string, unknown>`，未与 Game 引擎集成。
+- **建议**: 添加 core 依赖，实现 `game.on("*", handler) → broadcast()` 联动。
+- **优先级**: 🟡 中
+
+### REVIEW-065: RoomManager 用 static 存储，不支持多实例
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-016
+- **文件**: `packages/network/src/room.ts`
+- **日期**: 2026-05-18
+- **问题**: 所有房间数据存在静态 Map（内存），不支持多实例/进程。
+- **建议**: 改为实例级存储或注入存储接口。
+- **优先级**: 🟡 中
+
+---
+
+## REVIEW-060~062 二次验证 + TASK-017 审查
+
+**构建**: ✅ pnpm build 通过（7 packages）| **测试**: ✅ 514/514 通过（core 261 + deck 109 + sanguosha 79 + ai 27 + web 14 + editor 10 + 其他 14）
+
+### REVIEW-060 二次验证：core/ai 集成
+- ⚠️ **部分修复** — `@cardverse/core` 已集成（Game/DeckLoader/eventBus），但 `@cardverse/ai` **未集成**（package.json 无依赖，代码无 import）
+- 🟡 **标记为已处理但实际未完全修复**
+
+### REVIEW-061 二次验证：测试文件
+- ⚠️ **形式修复** — web.test.ts 存在（14 tests），但测试均为数据断言占位，未 import 任何实际模块（GameUI/CardView/TableRenderer）
+
+### REVIEW-062 二次验证：tsconfig.json
+- ✅ **正确修复** — 继承 tsconfig.base.json，lib 包含 DOM
+
+### apps/web/src/main.ts 新发现的 bug
+
+### REVIEW-066: phaseIndex 永远为 0，阶段显示不推进
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-015
+- **文件**: `apps/web/src/main.ts:149,191,253`
+- **日期**: 2026-05-19
+- **问题**: `let phaseIndex = 0` 声明后，只在 `endTurn` 回调中重置为 0（line 173），"下一步"按钮调用 `game.nextPhase()` 但从未 `phaseIndex++`。UI 显示阶段始终为 `phases[0]`。
+- **建议**: 将 `phaseIndex` 从 Game 引擎获取（`game.phases.currentPhaseIndex`），而非本地维护。
+- **优先级**: 🔴 高（功能失效）
+
+### REVIEW-067: 当前玩家索引偏移 — 第一个行动的是 players[1] 而非 players[0]
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-015
+- **文件**: `apps/web/src/main.ts:163`
+- **日期**: 2026-05-19
+- **问题**: `players[turnNumber % players.length]`，turnNumber 从 1 开始，所以首回合玩家是 `players[1]`（索引 1），跳过了 `players[0]`（主公）。
+- **建议**: 改为 `players[(turnNumber - 1) % players.length]` 或直接从 Game 引擎读取当前玩家。
+- **优先级**: 🔴 高（游戏逻辑错误）
+
+### REVIEW-068: async 竞态 — playCard/nextPhase 后同步调用 updateGameState
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-015
+- **文件**: `apps/web/src/main.ts:164-168,253-256`
+- **日期**: 2026-05-19
+- **问题**: `game.playCard()` 和 `game.nextPhase()` 是 async，但 `updateGameState()` 在 `.catch()` 之后同步调用（line 167, 256），此时状态可能还未更新。eventBus 的 `"*"` 监听器也会触发 updateGameState()，造成双重更新。
+- **建议**: 移除同步的 `updateGameState()` 调用，完全依赖 eventBus `"*"` 事件触发 UI 更新。
+- **优先级**: 🔴 高（竞态条件）
+
+### REVIEW-069: innerHTML XSS — 错误信息未转义
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-015
+- **文件**: `apps/web/src/main.ts:264-266`
+- **日期**: 2026-05-19
+- **问题**: `err.message` 直接插入 `innerHTML`，若错误信息含 HTML 将被执行。
+- **建议**: 改用 `textContent` 或转义 HTML 实体。
+- **优先级**: 🟢 低（仅在启动失败时触发）
+
+---
+
+## TASK-017 审查（可视化编辑器基础）
+
+**构建**: ✅ 通过 | **测试**: ✅ 10/10 通过
+
+**验收**: 能创建卡牌 ✅ / 能导出卡组 ✅ / REVIEW-060~062 修复 ⚠️（见上）
+
+### REVIEW-070: 编辑器定义独立类型，未复用 packages/shared
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-017
+- **文件**: `apps/editor/src/editor.ts`
+- **日期**: 2026-05-19
+- **问题**: `CardEditorData`/`CharacterEditorData` 是全新定义，与 `@cardverse/shared` 的 `CardDefinition`/`CharacterDefinition` 结构不兼容。导出的 JSON 无法直接被 DeckLoader 加载。
+- **建议**: 引入 `@cardverse/shared` 依赖，编辑器数据类型基于 shared 类型扩展。
+- **优先级**: 🔴 高（类型孤岛，导出数据不可用）
+
+### REVIEW-071: main.ts 420 行单文件，缺乏架构分层
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-017
+- **文件**: `apps/editor/src/main.ts`
+- **日期**: 2026-05-19
+- **问题**: 全局可变状态（activeTab/cards/characters/editingCard/editingChar）、纯过程式 DOM 操作、420 行全部在一个文件中。
+- **建议**: 拆分为 `state.ts`（状态管理）+ `renderer.ts`（UI 渲染）+ `main.ts`（入口）。
+- **优先级**: 🟡 中（可维护性）
+
+### REVIEW-072: 无 ID 唯一性校验
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-017
+- **文件**: `apps/editor/src/main.ts`
+- **日期**: 2026-05-19
+- **问题**: 创建卡牌/角色时允许空 ID 和重复 ID，导出的卡组可能包含冲突。
+- **建议**: 添加 ID 格式校验和唯一性检查。
+- **优先级**: 🟡 中（数据完整性）
+
+### REVIEW-073: package.json 缺少 @cardverse/shared 依赖
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-017
+- **文件**: `apps/editor/package.json`
+- **日期**: 2026-05-19
+- **问题**: vite.config.ts 配置了 shared alias 但 package.json 未声明依赖。editor.ts 也未 import shared。
+- **建议**: 添加 `@cardverse/shared: workspace:*` 依赖。
+- **优先级**: 🟡 中
+
+### REVIEW-074: cardToJSON/characterToJSON 使用 Record + delete 破坏类型信息
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-017
+- **文件**: `apps/editor/src/editor.ts:58-75`
+- **日期**: 2026-05-19
+- **问题**: 先构建 `Record<string, unknown>` 再 `delete obj.description`，类型信息丢失。
+- **建议**: 用条件展开 `...(card.description && { description: card.description })`。
+- **优先级**: 🟢 低
+
+### REVIEW-075: buildDeckExport 中 manifest.id 硬编码
+- **状态**: ❌ 未处理
+- **关联任务**: TASK-017
+- **文件**: `apps/editor/src/editor.ts:104`
+- **日期**: 2026-05-19
+- **问题**: manifest.id 固定为 `"custom-deck"`，不允许用户自定义卡组名称/ID。
+- **建议**: 添加卡组名称输入框，传入 buildDeckExport。
+- **优先级**: 🟢 低
+
+---
+
+*审查人: Hermes Agent | 日期: 2026-05-19*
     73|    73|
