@@ -1256,4 +1256,21 @@
   5. EffectExecutor 沙箱评估：`vm.runInNewContext` 仅 Node.js 可用，浏览器不支持，当前 `new Function()` + 全局变量覆盖方案正确，已记录决策理由
   6. 清理 19 个 `as any` 断言：heuristic.test.ts 13 个 → `GameEvent`，resources.test.ts 4 个 → `GameEvent | null` / `string | undefined`，engine.test.ts 2 个 → `Record<string, unknown> | undefined` / `EventTypeValue | undefined`
 - **结论**: ✅ 自审通过
+
+### 自审-TASK-032: 可玩性验证端到端测试
+- **日期**: 2026-05-19
+- **构建**: ✅ pnpm build 通过（8 packages）
+- **测试**: ✅ 632/632 通过（core 358 + deck 109 + sanguosha 79 + ai 34 + web 14 + editor 10 + network 28）
+- **Lint**: ✅ 0 issues
+- **自审清单**: ✅ 全部通过
+- **发现**: 无
+- **修复内容**:
+  1. 新增 e2e.test.ts，包含 6 个场景 23 个测试：
+     - 场景1: 4人AI自动对局（完整游戏流程、无无限循环）
+     - 场景2: 1玩家+3AI对局（人类出牌、AI自动决策、响应事件）
+     - 场景3: 身份局完整性（角色分配、主公/反贼/内奸胜利检测）
+     - 场景4: 效果脚本执行（杀→伤害、桃→回血、酒→伤害加成、弃牌追踪）
+     - 场景5: 装备系统（范围验证、装备区放置、距离计算）
+     - 场景6: 响应流程（杀→闪、锦囊→无懈、决斗→杀、AI响应决策）
+- **结论**: ✅ 自审通过
     73|    73|
