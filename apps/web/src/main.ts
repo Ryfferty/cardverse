@@ -6,6 +6,7 @@ import { DeckLoader } from "@cardverse/deck";
 import { Game } from "@cardverse/core";
 import type { ZoneDefinition, PhaseDefinition, ResourceDefinition, PlayerId, CardInstanceId } from "@cardverse/shared";
 import { ResponseDialog } from "./ResponseDialog.js";
+import { OpponentPanel, type OpponentInfo } from "./OpponentPanel.js";
 
 interface DeckCard {
   id: string;
@@ -164,6 +165,9 @@ async function main(): Promise<void> {
     aiPlayers.set(players[i], new HeuristicAI(`AI_${playerNames[i]}`));
   }
 
+  const opponentPanel = new OpponentPanel();
+  opponentPanel.mount(appRoot);
+
   let isHumanTurn = true;
   let runningAI = false;
 
@@ -193,6 +197,27 @@ async function main(): Promise<void> {
       health,
       maxHealth,
     });
+
+    const opponents: OpponentInfo[] = [];
+    const alivePlayers = getAlivePlayers();
+    const currentTurnPlayer = state.currentTurn?.playerId;
+    for (const pid of players) {
+      if (pid === getHumanPlayerId()) continue;
+      const p = state.players.get(pid);
+      if (!p) continue;
+      const hp = game.resources.getValue(pid, "health") ?? 0;
+      const mhp = game.resources.getValue(pid, "maxHealth") ?? 4;
+      opponents.push({
+        playerId: pid,
+        name: playerNames[parseInt(pid.split("_")[1])] ?? pid,
+        health: hp,
+        maxHealth: mhp,
+        handCount: getAiHandCards(pid).length,
+        isCurrentTurn: pid === currentTurnPlayer,
+        seatIndex: game.getPlayerSeatIndex(pid),
+      });
+    }
+    opponentPanel.render(opponents);
   }
 
   function getAlivePlayers(): PlayerId[] {
