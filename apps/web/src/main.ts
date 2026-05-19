@@ -8,6 +8,7 @@ import type { ZoneDefinition, PhaseDefinition, ResourceDefinition, PlayerId, Car
 import { ResponseDialog } from "./ResponseDialog.js";
 import { DiscardDialog } from "./DiscardDialog.js";
 import { GameLogPanel } from "./GameLogPanel.js";
+import { GameOverScreen } from "./GameOverScreen.js";
 import { OpponentPanel, type OpponentInfo } from "./OpponentPanel.js";
 
 interface DeckCard {
@@ -650,6 +651,54 @@ async function main(): Promise<void> {
         }
         updateGameUI();
       }
+    }
+
+    if (event.type === "game:end" && event.data) {
+      const gameOverScreen = new GameOverScreen();
+      const state = game.getState();
+      const eventLog = game.getEventLog();
+
+      const players: Array<{
+        playerId: PlayerId;
+        name: string;
+        role: string;
+        alive: boolean;
+      }> = [];
+
+      for (const [pid, p] of state.players) {
+        const role = game.getPlayerRole(pid) ?? "unknown";
+        players.push({
+          playerId: pid,
+          name: p.name,
+          role,
+          alive: p.status === "alive",
+        });
+      }
+
+      const cardsPlayed = eventLog.filter((e) => e.type === "card:played").length;
+      const damageEvents = eventLog.filter((e) => e.type === "damage:dealt" || e.type === "damage:taken");
+      const damageDealt = damageEvents.reduce((sum, e) => sum + ((e.data.amount as number) ?? 1), 0);
+
+      gameOverScreen.onRestart = () => {
+        window.location.reload();
+      };
+      gameOverScreen.onShowLog = () => {
+        const logPanel = document.getElementById("game-log-panel");
+        if (logPanel) {
+          logPanel.style.display = logPanel.style.display === "none" ? "block" : "none";
+        }
+      };
+
+      gameOverScreen.show({
+        winner: (event.data.winner as string) ?? "unknown",
+        condition: (event.data.condition as string) ?? "",
+        players,
+        stats: {
+          turnCount: state.turnNumber,
+          cardsPlayed,
+          damageDealt,
+        },
+      });
     }
   });
 

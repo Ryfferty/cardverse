@@ -1257,6 +1257,22 @@
   6. 清理 19 个 `as any` 断言：heuristic.test.ts 13 个 → `GameEvent`，resources.test.ts 4 个 → `GameEvent | null` / `string | undefined`，engine.test.ts 2 个 → `Record<string, unknown> | undefined` / `EventTypeValue | undefined`
 - **结论**: ✅ 自审通过
 
+### 自审-TASK-036: 游戏结束界面
+- **日期**: 2026-05-19
+- **构建**: ✅ pnpm build 通过
+- **测试**: ✅ 636/636 通过
+- **Lint**: ✅ 0 issues
+- **自审清单**: ✅ 全部通过
+- **发现**: 无
+- **修复内容**:
+  1. 新增 `GameOverScreen` 组件：检测游戏结束状态，显示赢家阵营
+  2. 显示各玩家身份（主公/忠臣/反贼/内奸），存活绿色、阵亡红色
+  3. 显示游戏统计：总回合数、出牌总数、伤害总量
+  4. 「再来一局」按钮重置游戏（window.location.reload）
+  5. 「查看日志」按钮切换日志面板显示
+  6. main.ts 监听 `game:end` 事件，收集统计数据并显示界面
+- **结论**: ✅ 自审通过
+
 ### 自审-TASK-035: 卡牌视觉增强
 - **日期**: 2026-05-19
 - **构建**: ✅ pnpm build 通过
