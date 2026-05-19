@@ -8,6 +8,8 @@ export interface OpponentInfo {
   seatIndex: number;
   isAlive: boolean;
   equipment: string[];
+  role?: string;
+  roleRevealed: boolean;
 }
 
 export class OpponentPanel {
@@ -63,6 +65,25 @@ export class OpponentPanel {
       handEl.textContent = `手牌: ${opp.handCount}`;
       handEl.style.cssText = "font-size:12px;color:#aaa;";
       header.appendChild(handEl);
+
+      if (opp.roleRevealed && opp.role) {
+        const roleEl = document.createElement("span");
+        const roleColor: Record<string, string> = {
+          lord: "#ffcc44",
+          loyalist: "#44aaff",
+          rebel: "#ff4444",
+          spy: "#aa44ff",
+        };
+        const roleName: Record<string, string> = {
+          lord: "主公",
+          loyalist: "忠臣",
+          rebel: "反贼",
+          spy: "内奸",
+        };
+        roleEl.textContent = roleName[opp.role] ?? opp.role;
+        roleEl.style.cssText = `font-size:11px;padding:1px 6px;border-radius:3px;background:${roleColor[opp.role] ?? "#888"}22;color:${roleColor[opp.role] ?? "#888"};border:1px solid ${roleColor[opp.role] ?? "#888"}44;`;
+        header.appendChild(roleEl);
+      }
 
       card.appendChild(header);
 

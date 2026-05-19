@@ -444,6 +444,10 @@ export class Game {
     return [...equipZone.cards];
   }
 
+  getRoleAssignment(playerId: PlayerId): { role: string; revealed: boolean } | undefined {
+    return this.roleManager.getAssignment(playerId);
+  }
+
   getPlayerRangeModifiers(playerId: PlayerId): RangeModifiers {
     const equipCardIds = this.getEquipmentCards(playerId);
     const equipDefs = RangeManager.resolveEquipmentCards(equipCardIds, this.cardDefinitions);

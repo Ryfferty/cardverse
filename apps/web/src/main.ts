@@ -234,6 +234,8 @@ async function main(): Promise<void> {
         return cardDef?.name ?? defId;
       });
 
+      const roleAssignment = game.getRoleAssignment(pid);
+
       opponents.push({
         playerId: pid,
         name: playerNames[parseInt(pid.split("_")[1])] ?? pid,
@@ -244,6 +246,8 @@ async function main(): Promise<void> {
         seatIndex: game.getPlayerSeatIndex(pid),
         isAlive: p.status === "alive",
         equipment: equipNames,
+        role: roleAssignment?.role,
+        roleRevealed: roleAssignment?.revealed ?? false,
       });
     }
     opponentPanel.render(opponents);
