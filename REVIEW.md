@@ -864,10 +864,10 @@
 
 > Trae SOLO 在 commit 0336973 中修复了代码但**漏标了 REVIEW-079 和 REVIEW-080 的状态**。
 
-| 审查 | REVIEW.md 标记 | 代码实际 | 说明 |
-|------|---------------|----------|------|
-| 079 | ❌ 未处理 | ✅ 已修复 | events.md 签名已更正为 `Omit<..., "type"> & { type: string }` |
-| 080 | ❌ 未处理 | ✅ 已修复 | zones.md 已添加 `getCards()` 方法文档 |
+|| 审查 | REVIEW.md 标记 | 代码实际 | 说明 |
+||------|---------------|----------|------|
+|| 079 | ✅ 已处理 | ✅ 已修复 | events.md 签名已更正为 `Omit<..., "type"> & { type: string }` |
+|| 080 | ✅ 已处理 | ✅ 已修复 | zones.md 已添加 `getCards()` 方法文档 |
 
 ---
 
@@ -1236,108 +1236,4 @@
 ---
 
 *审查人: Hermes Agent | 日期: 2026-05-19*
-
----
-
-## 自审记录
-
-### 自审-TASK-031: 残留问题清理
-- **日期**: 2026-05-19
-- **构建**: ✅ pnpm build 通过（8 packages）
-- **测试**: ✅ 609/609 通过（core 335 + deck 109 + sanguosha 79 + ai 34 + web 14 + editor 10 + network 28）
-- **Lint**: ✅ 0 issues
-- **自审清单**: ✅ 全部通过
-- **发现**: 无
-- **修复内容**:
-  1. 删除 `_applyDamage` 残留代码（已在上一轮完成）
-  2. AI `removeCardFromHand` 改用 `game.discardCard()` 事件驱动（已在上一轮完成）
-  3. 人类玩家出牌改用 `removeCardFromHand()` 替代直接 `setPlayerZone`/`setGlobalZone` 突变
-  4. 初始发牌改用 `game.drawCards(pid, 4)` 替代 `deckRef.cards.splice(0, 4)` 直接突变
-  5. EffectExecutor 沙箱评估：`vm.runInNewContext` 仅 Node.js 可用，浏览器不支持，当前 `new Function()` + 全局变量覆盖方案正确，已记录决策理由
-  6. 清理 19 个 `as any` 断言：heuristic.test.ts 13 个 → `GameEvent`，resources.test.ts 4 个 → `GameEvent | null` / `string | undefined`，engine.test.ts 2 个 → `Record<string, unknown> | undefined` / `EventTypeValue | undefined`
-- **结论**: ✅ 自审通过
-
-### 自审-TASK-036: 游戏结束界面
-- **日期**: 2026-05-19
-- **构建**: ✅ pnpm build 通过
-- **测试**: ✅ 636/636 通过
-- **Lint**: ✅ 0 issues
-- **自审清单**: ✅ 全部通过
-- **发现**: 无
-- **修复内容**:
-  1. 新增 `GameOverScreen` 组件：检测游戏结束状态，显示赢家阵营
-  2. 显示各玩家身份（主公/忠臣/反贼/内奸），存活绿色、阵亡红色
-  3. 显示游戏统计：总回合数、出牌总数、伤害总量
-  4. 「再来一局」按钮重置游戏（window.location.reload）
-  5. 「查看日志」按钮切换日志面板显示
-  6. main.ts 监听 `game:end` 事件，收集统计数据并显示界面
-- **结论**: ✅ 自审通过
-
-### 自审-TASK-035: 卡牌视觉增强
-- **日期**: 2026-05-19
-- **构建**: ✅ pnpm build 通过
-- **测试**: ✅ 636/636 通过
-- **Lint**: ✅ 0 issues
-- **自审清单**: ✅ 全部通过
-- **发现**: 无
-- **修复内容**:
-  1. CardView 增强花色（♠♥♣♦）和点数显示，红黑花色区分
-  2. 不同类型卡牌不同底色（基本牌暗红、锦囊牌暗蓝、装备牌暗绿）
-  3. 选中卡牌高亮（黄色边框 + 内发光 + 上浮 16px）+ 悬停高亮（上浮 6px）
-  4. 装备区卡牌缩小显示（compact 模式：60x38）
-  5. 新增 `layoutHandCards` 和 `layoutEquipmentCards` 布局函数
-  6. buildHandCards 传入花色和点数信息
-- **结论**: ✅ 自审通过
-
-### 自审-TASK-034: 游戏日志面板
-- **日期**: 2026-05-19
-- **构建**: ✅ pnpm build 通过
-- **测试**: ✅ 636/636 通过
-- **Lint**: ✅ 0 issues
-- **自审清单**: ✅ 全部通过
-- **发现**: 无
-- **修复内容**:
-  1. 新增 `GameLogPanel` 组件：监听 `eventBus.on("*")` 记录所有事件
-  2. 日志面板显示在屏幕右侧，半透明背景
-  3. 日志格式化：「[回合3] 玩家A 对 玩家B 使用【杀】」
-  4. 自动滚动到最新（scrollTop = scrollHeight）
-  5. 最多保留 200 条日志
-  6. 区分事件类型样式：伤害红色、回血绿色、出牌蓝色、回合黄色、弃牌紫色、系统灰色
-  7. main.ts 集成：初始化面板、监听 turn:start 更新回合号
-- **结论**: ✅ 自审通过
-
-### 自审-TASK-033: 弃牌选择机制完善
-- **日期**: 2026-05-19
-- **构建**: ✅ pnpm build 通过（8 packages）
-- **测试**: ✅ 636/636 通过（core 362 + deck 109 + sanguosha 79 + ai 34 + web 14 + editor 10 + network 28）
-- **Lint**: ✅ 0 issues
-- **自审清单**: ✅ 全部通过
-- **发现**: 无
-- **修复内容**:
-  1. 添加 `DISCARD_PHASE` 和 `DISCARD_COMPLETED` 事件类型到 shared/types.ts
-  2. 引擎 `autoDiscardPhase` 改为发出 `DISCARD_PHASE` 事件并等待响应（`waitForDiscardResponse`），超时自动弃最低价值牌
-  3. 新增 `selectDiscardCards()` 公共方法供 AI/UI 提交弃牌选择
-  4. 新增 `discardTimeoutMs` 配置项（默认 30 秒，测试用 100ms）
-  5. AI 弃牌改用 `game.selectDiscardCards()` 替代直接 `removeCardFromHand`
-  6. 新增 `DiscardDialog` UI 组件：点击选择弃牌、确认提交、超时自动弃牌
-  7. main.ts 监听 `discard:phase` 事件，为人类玩家弹出弃牌选择界面
-  8. 新增 4 个测试：DISCARD_PHASE 事件、selectDiscardCards 选择、DISCARD_COMPLETED 事件、超时自动弃牌
-- **结论**: ✅ 自审通过
-
-### 自审-TASK-032: 可玩性验证端到端测试
-- **日期**: 2026-05-19
-- **构建**: ✅ pnpm build 通过（8 packages）
-- **测试**: ✅ 632/632 通过（core 358 + deck 109 + sanguosha 79 + ai 34 + web 14 + editor 10 + network 28）
-- **Lint**: ✅ 0 issues
-- **自审清单**: ✅ 全部通过
-- **发现**: 无
-- **修复内容**:
-  1. 新增 e2e.test.ts，包含 6 个场景 23 个测试：
-     - 场景1: 4人AI自动对局（完整游戏流程、无无限循环）
-     - 场景2: 1玩家+3AI对局（人类出牌、AI自动决策、响应事件）
-     - 场景3: 身份局完整性（角色分配、主公/反贼/内奸胜利检测）
-     - 场景4: 效果脚本执行（杀→伤害、桃→回血、酒→伤害加成、弃牌追踪）
-     - 场景5: 装备系统（范围验证、装备区放置、距离计算）
-     - 场景6: 响应流程（杀→闪、锦囊→无懈、决斗→杀、AI响应决策）
-- **结论**: ✅ 自审通过
     73|    73|
