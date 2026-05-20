@@ -1,0 +1,29 @@
+{
+  "game": {
+    "name": "Test Poker Rules",
+    "version": "1.0.0",
+    "description": "Standard poker rules for testing CardVerse engine versatility"
+  },
+  "zones": [
+    { "id": "deck", "name": "Deck", "visibility": "none", "ordered": true, "faceDown": true, "owner": "global" },
+    { "id": "hand", "name": "Hand", "visibility": "owner", "ordered": false, "faceDown": false, "owner": "player", "capacity": 5 },
+    { "id": "play", "name": "Play Area", "visibility": "all", "ordered": false, "faceDown": false, "owner": "player" },
+    { "id": "discard", "name": "Discard Pile", "visibility": "all", "ordered": false, "faceDown": true, "owner": "global" }
+  ],
+  "phases": [
+    { "id": "draw", "name": "Draw Phase", "auto": true },
+    { "id": "bet", "name": "Bet Phase", "auto": false },
+    { "id": "action", "name": "Action Phase", "auto": false },
+    { "id": "discard", "name": "Discard Phase", "auto": false }
+  ],
+  "resources": [
+    { "id": "chips", "name": "Chips", "defaultValue": 100, "min": 0 }
+  ],
+  "turnOrder": "clockwise",
+  "gameFlow": {
+    "setup": {
+      "shuffleDeck": true,
+      "initialHandSize": 5
+    }
+  }
+}
