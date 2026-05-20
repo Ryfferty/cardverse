@@ -345,6 +345,54 @@
 
 ---
 
+
+## 阶段 7：可玩性验证与打磨（续）
+
+### TASK-037: 第七阶段补充：AI 集成与功能完善
+- **状态**: ⬜ 待开始
+- **依赖**: TASK-036
+- **包**: `packages/ai`, `packages/core`, `apps/web`
+- **描述**: 完成AI系统集成、增强Web功能和测试质量
+- **具体要求**:
+  - 完成 `@cardverse/ai` 包的集成：添加到 package.json 依赖，并在需要的地方导入使用
+  - 增强 Web UI 测试：修改 web.test.ts 以实际导入和测试 GameUI/CardView/TableRenderer 等核心模块
+  - 优化目标选择算法：替换简单的 `enemies[0]` 为考虑距离、血量、威胁度的综合策略
+  - 确保AI决策覆盖所有游戏阶段（摸牌、判定、出牌、弃牌等）
+  - 编写AI集成的端到端测试，验证1玩家+3AI对局的完整流程
+- **验收标准**:
+  - `packages/ai` 出现在 `apps/web` 和 `packages/core` 的 package.json 依赖中
+  - `web.test.ts` 至少有3个测试实际导入了核心Web模块
+  - 目标选择函数不再简单返回 `enemies[0]`，而是基于评分机制选择
+  - AI 能在非play阶段（如判定、弃牌）做出合理决策
+  - `pnpm test` 通过（包括新增的AI集成测试）
+- **自审要求**: 完成后执行完整自审流程，记录到 REVIEW.md
+
+### TASK-038: 第七阶段补充：架构一致性与安全加固
+- **状态**: ⬜ 待开始
+- **依赖**: TASK-037
+- **包**: `packages/core`, `apps/web`, `apps/editor`
+- **描述**: 修复架构一致性问题，加固沙箱安全，完善UI细节
+- **具体要求**:
+  - 清理类型孤岛：确保导入的类型（如 CardDefinition）在代码中实际使用，或移除未使用的导入
+  - 清理ID校验死代码：要么在renderer.ts等地方实际调用validateCardId/validateCharId，要么移除未使用的验证函数
+  - 彻底移除引擎状态突变残留：删除 _applyDamage 函数及所有直接调用，确保所有状态变更通过事件驱动
+  - 修复事件重复触发问题：检查 endTurn 逻辑，避免 turnNumber++ 和 updateGameState() 的手动调用导致的事件重复
+  - 加固效果脚本沙箱：评估并实现更安全的沙箱方案（如 vm.runInNewContext 或 完全限制的 Function 构造函数）
+  - 为卡组导入/导出功能添加卡组名称输入框，确保 buildDeckExport 能接收自定义名称
+  - 优化弃牌选择UI：确保玩家有明确的选择界面，AI有合理的弃牌策略
+- **验收标准**:
+  - 代码中无未使用的 CardDefinition 等类型导入（或它们被实际使用）
+  - validateCardId/validateCharId 在核心模块中被实际调用
+  - 代码中无 _applyDamage 函数的定义或调用
+  - endTurn 逻辑仅通过事件驱动状态变更，无手动 turnNumber++ 或 updateGameState()
+  - 脚本沙箱抵御基本的构造函数链攻击（如无法通过__proto__访问危险全局对象）
+  - Web UI 中卡组导入/导出对话框有名称输入字段
+  - `pnpm lint` 0 errors
+  - `pnpm test` 全部通过
+- **自审要求**: 完成后执行完整自审流程，记录到 REVIEW.md
+
+*最后更新: 2026-05-20*
+
 *最后更新: 2026-05-19*
 
 ---
