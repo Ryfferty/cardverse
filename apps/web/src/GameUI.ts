@@ -36,7 +36,16 @@ export class GameUI {
       antialias: true,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
-    });
+      preference: "webgpu",
+    }).catch(() =>
+      this.app.init({
+        width: 900,
+        height: 680,
+        backgroundColor: 0x0a0a1a,
+        antialias: true,
+        preference: "webgl",
+      }),
+    );
     parent.appendChild(this.app.canvas);
 
     this.table = new TableRenderer(900, 680);

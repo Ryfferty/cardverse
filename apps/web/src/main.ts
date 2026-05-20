@@ -93,16 +93,47 @@ async function main(): Promise<void> {
     return;
   }
 
+  let step = 0;
+  const log = (msg: string) => console.log(`[CardVerse init ${++step}] ${msg}`);
+
+  const loadingDiv = document.createElement("div");
+  loadingDiv.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: #0a0a1a; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; z-index: 9999;
+    font-family: Arial, sans-serif; color: #e0d5c0;
+  `;
+  loadingDiv.innerHTML = `
+    <div style="font-size: 24px; font-weight: bold; margin-bottom: 20px; color: #ffcc44;">
+      CardVerse 三国杀
+    </div>
+    <div id="init-status" style="font-size: 14px; color: #aaa;">
+      正在加载...
+    </div>
+  `;
+  appRoot.appendChild(loadingDiv);
+
+  function setStatus(msg: string): void {
+    const el = document.getElementById("init-status");
+    if (el) el.textContent = msg;
+    log(msg);
+  }
+
+  setStatus("加载卡组数据...");
   const { deckJson, allCards } = await loadDeckData();
+  setStatus("解析卡组...");
+
   const loader = new DeckLoader();
   const deck = loader.loadFromJson(deckJson);
 
-  const game = Game.create({ deckId: deck.manifest.id, playerCount: 4 });
+  setStatus("创建游戏实例...");
+  const game = Game.create({ deckId: deck.manifest.id, playerCount: 4, discardTimeoutMs: 30000 });
 
   const zones = (deckJson.rules as { zones: ZoneDefinition[] }).zones;
   const phases = (deckJson.rules as { phases: PhaseDefinition[] }).phases;
   const resources = (deckJson.rules as { resources: ResourceDefinition[] }).resources;
 
+  setStatus("初始化区域...");
   game.initZones(zones);
   game.initResources(resources);
   game.setCardDefinitions(deck.cards);
@@ -110,6 +141,7 @@ async function main(): Promise<void> {
   const playerNames = ["玩家", "AI-1", "AI-2", "AI-3"];
   const players: PlayerId[] = [];
 
+  setStatus("创建玩家...");
   for (let i = 0; i < 4; i++) {
     const pid = `player_${i}`;
     players.push(pid);
@@ -151,7 +183,9 @@ async function main(): Promise<void> {
     game.state.updatePlayerHandCount(pid);
   }
 
+  setStatus("初始化游戏阶段...");
   game.initPhases(phases);
+  setStatus("启动游戏...");
   await game.start();
   const roleAssignments = game.assignRoles();
 
@@ -174,15 +208,22 @@ async function main(): Promise<void> {
     }
   }
 
+  setStatus("初始化游戏界面...");
   const ui = new GameUI();
-  await ui.init(appRoot, {
-    playerName: playerNames[0],
-    handCards: [],
-    turn: 1,
-    phase: "play",
-    health: 4,
-    maxHealth: 4,
-  });
+  try {
+    await ui.init(appRoot, {
+      playerName: playerNames[0],
+      handCards: [],
+      turn: 1,
+      phase: "play",
+      health: 4,
+      maxHealth: 4,
+    });
+  } catch (uiError) {
+    console.error("GameUI init failed:", uiError);
+    setStatus("游戏界面初始化失败: " + (uiError instanceof Error ? uiError.message : String(uiError)));
+    return;
+  }
 
   const aiPlayers = new Map<PlayerId, HeuristicAI>();
   for (let i = 1; i < 4; i++) {
@@ -420,13 +461,45 @@ async function main(): Promise<void> {
     }
   }
 
+  async function getNextPlayer(currentPlayerId: PlayerId | undefined): Promise<PlayerId | undefined> {
+    const alivePlayers = getAlivePlayers();
+    if (alivePlayers.length === 0) return undefined;
+    
+    if (!currentPlayerId) {
+      return alivePlayers[0];
+    }
+
+    const currentIndex = game.getPlayerSeatIndex(currentPlayerId);
+    if (currentIndex < 0) return alivePlayers[0];
+
+    const allPlayers = Array.from(game.getState().players.keys());
+    for (let offset = 1; offset < allPlayers.length; offset++) {
+      const nextIndex = (currentIndex + offset) % allPlayers.length;
+      const nextPlayerId = allPlayers[nextIndex];
+      if (alivePlayers.includes(nextPlayerId)) {
+        return nextPlayerId;
+      }
+    }
+
+    return undefined;
+  }
+
   async function startNextTurnIfAI(): Promise<void> {
     if (runningAI) return;
 
     const alivePlayers = getAlivePlayers();
     if (alivePlayers.length <= 1) return;
 
-    const currentTurnPlayer = game.getState().currentTurn?.playerId;
+    let currentTurnPlayer = game.getState().currentTurn?.playerId;
+
+    if (!currentTurnPlayer) {
+      currentTurnPlayer = await getNextPlayer(undefined);
+      if (!currentTurnPlayer) return;
+      
+      await game.startTurn(currentTurnPlayer);
+    }
+
+    currentTurnPlayer = game.getState().currentTurn?.playerId;
     if (!currentTurnPlayer || !alivePlayers.includes(currentTurnPlayer)) {
       return;
     }
@@ -442,11 +515,18 @@ async function main(): Promise<void> {
     ui.clearSelection();
 
     await runAITurn(currentTurnPlayer);
-    updateGameUI();
 
-    setTimeout(() => {
-      startNextTurnIfAI().catch(console.error);
-    }, 500);
+    const nextPlayer = await getNextPlayer(currentTurnPlayer);
+    if (nextPlayer && getAlivePlayers().includes(nextPlayer)) {
+      if (nextPlayer === getHumanPlayerId()) {
+        isHumanTurn = true;
+        updateGameUI();
+      } else {
+        setTimeout(() => {
+          startNextTurnIfAI().catch(console.error);
+        }, 500);
+      }
+    }
   }
 
   ui.setInteractionCallback((action, cardIds) => {
@@ -754,6 +834,7 @@ async function main(): Promise<void> {
     updateGameUI();
   });
 
+  setStatus("开始发牌...");
   for (const pid of players) {
     try {
       await game.drawCards(pid, 4);
@@ -763,6 +844,8 @@ async function main(): Promise<void> {
   }
 
   updateGameUI();
+
+  if (loadingDiv.parentNode) loadingDiv.remove();
 
   // Start the first turn
   setTimeout(() => {
