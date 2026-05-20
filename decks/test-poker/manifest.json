@@ -1,0 +1,40 @@
+{
+  "manifest": {
+    "id": "test-poker",
+    "name": "Test Poker Deck",
+    "version": "1.0.0",
+    "author": "CardVerse Developer",
+    "description": "A simple poker deck for testing CardVerse engine versatility",
+    "minPlayers": 2,
+    "maxPlayers": 6,
+    "frameworkVersion": "1.0.0",
+    "tags": ["poker", "test", "card-game"]
+  },
+  "cardPacks": [
+    { "type": "basic", "source": "cards/basic.json" }
+  ],
+  "rules": {
+    "zones": [
+      { "id": "deck", "owner": "global", "visible": false, "ordered": true, "capacity": -1, "defaultFaceUp": false, "belongsTo": "none" },
+      { "id": "hand", "owner": "player", "visible": false, "ordered": false, "capacity": 5, "defaultFaceUp": false, "belongsTo": "player" },
+      { "id": "discard", "owner": "global", "visible": true, "ordered": false, "capacity": -1, "defaultFaceUp": true, "belongsTo": "none" }
+    ],
+    "phases": [
+      { "id": "deal", "auto": true },
+      { "id": "bet", "auto": false },
+      { "id": "draw", "auto": false },
+      { "id": "showdown", "auto": true }
+    ],
+    "resources": [
+      { "id": "chips", "defaultValue": 100, "minValue": 0 }
+    ],
+    "turnOrder": "counterclockwise"
+  },
+  "winConditions": [
+    { "type": "most-chips", "description": "Player with most chips at end wins" }
+  ],
+  "drawConditions": [],
+  "effects": {
+    "scripts": []
+  }
+}

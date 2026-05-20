@@ -1,0 +1,91 @@
+{
+  "manifest": {
+    "id": "test-poker-basic",
+    "name": "Test Poker Basic Cards",
+    "version": "1.0.0",
+    "author": "CardVerse Developer",
+    "description": "Standard 52-card poker deck",
+    "minPlayers": 2,
+    "maxPlayers": 6,
+    "frameworkVersion": "1.0.0",
+    "tags": ["poker", "basic", "standard"]
+  },
+  "rules": {
+    "zones": [
+      { "id": "deck", "name": "Deck", "visibility": "none", "ordered": true, "faceDown": true, "owner": "global" },
+      { "id": "hand", "name": "Hand", "visibility": "owner", "ordered": false, "faceDown": false, "owner": "player", "capacity": 5 },
+      { "id": "discard", "name": "Discard Pile", "visibility": "all", "ordered": false, "faceDown": true, "owner": "global" }
+    ],
+    "phases": [
+      { "id": "deal", "auto": true },
+      { "id": "bet", "auto": false },
+      { "id": "draw", "auto": false },
+      { "id": "showdown", "auto": true }
+    ],
+    "resources": [
+      { "id": "chips", "name": "Chips", "defaultValue": 100, "minValue": 0 }
+    ],
+    "turnOrder": "counterclockwise"
+  },
+  "cards": [
+    {
+      "id": "ace_spades",
+      "name": "A♠",
+      "category": "basic",
+      "description": "Ace of Spades",
+      "count": 1,
+      "tags": [],
+      "effects": [],
+      "suit": "spades",
+      "number": "A"
+    },
+    {
+      "id": "ace_hearts",
+      "name": "A♥",
+      "category": "basic",
+      "description": "Ace of Hearts",
+      "count": 1,
+      "tags": [],
+      "effects": [],
+      "suit": "hearts",
+      "number": "A"
+    },
+    {
+      "id": "ace_diamonds",
+      "name": "A♦",
+      "category": "basic",
+      "description": "Ace of Diamonds",
+      "count": 1,
+      "tags": [],
+      "effects": [],
+      "suit": "diamonds",
+      "number": "A"
+    },
+    {
+      "id": "ace_clubs",
+      "name": "A♣",
+      "category": "basic",
+      "description": "Ace of Clubs",
+      "count": 1,
+      "tags": [],
+      "effects": [],
+      "suit": "clubs",
+      "number": "A"
+    },
+    {
+      "id": "two_spades",
+      "name": "2♠",
+      "category": "basic",
+      "description": "2 of Spades",
+      "count": 1,
+      "tags": [],
+      "effects": [],
+      "suit": "spades",
+      "number": "2"
+    }
+  ],
+  "winConditions": [
+    { "type": "most-chips", "description": "Player with most chips at end wins" }
+  ],
+  "drawConditions": []
+}
