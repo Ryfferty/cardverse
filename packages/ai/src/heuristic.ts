@@ -102,6 +102,31 @@ export class HeuristicAI implements AIAdapter {
     return range;
   }
 
+  private selectBestTarget(enemies: AIPlayerInfo[]): AIPlayerInfo | undefined {
+    if (enemies.length === 0) return undefined;
+    if (enemies.length === 1) return enemies[0];
+
+    const self = this.getSelf();
+    let best = enemies[0];
+    let bestScore = -Infinity;
+
+    for (const enemy of enemies) {
+      let score = 0;
+      score += (enemy.maxHealth - enemy.health) * 3;
+      score += enemy.handCount;
+      const dist = this.getDistance(self.playerId, enemy.playerId);
+      if (dist <= 2) score += 3;
+      else if (dist <= 3) score += 1;
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = enemy;
+      }
+    }
+
+    return best;
+  }
+
   async decideAction(gameView: AIGameView): Promise<AIAction> {
     this.gameView = gameView;
     const self = this.getSelf();
@@ -140,7 +165,8 @@ export class HeuristicAI implements AIAdapter {
 
     const enemiesInRange = this.getEnemiesInRange(attackRange);
     if (shaCards.length > 0 && enemiesInRange.length > 0) {
-      const target = enemiesInRange[0];
+      const target = this.selectBestTarget(enemiesInRange);
+      if (!target) return { type: "endTurn" };
       return {
         type: "playCard",
         cardId: shaCards[0].instanceId,
@@ -166,10 +192,12 @@ export class HeuristicAI implements AIAdapter {
     const allEnemies = this.getEnemies();
     const trickCards = this.handCards.filter((c) => c.type === "trick");
     if (trickCards.length > 0 && allEnemies.length > 0) {
+      const target = this.selectBestTarget(allEnemies);
+      if (!target) return { type: "endTurn" };
       return {
         type: "playCard",
         cardId: trickCards[0].instanceId,
-        targets: [allEnemies[0].playerId],
+        targets: [target.playerId],
       };
     }
 

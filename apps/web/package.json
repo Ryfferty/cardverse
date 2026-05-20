@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@cardverse/ai": "workspace:*",
     "@cardverse/core": "workspace:*",
     "@cardverse/deck": "workspace:*",
     "@cardverse/shared": "workspace:*",

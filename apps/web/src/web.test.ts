@@ -1,4 +1,10 @@
 import { describe, it, expect } from "vitest";
+import { GameLogPanel } from "./GameLogPanel.js";
+import { OpponentPanel, type OpponentInfo } from "./OpponentPanel.js";
+import { ResponseDialog } from "./ResponseDialog.js";
+import { DiscardDialog } from "./DiscardDialog.js";
+import type { GameEvent } from "@cardverse/shared";
+import { EventType } from "@cardverse/shared";
 
 describe("CardView types and data", () => {
   it("should have valid card data structure", () => {
@@ -240,5 +246,357 @@ describe("GameUI data interface", () => {
 
     health = 0;
     expect(health).toBe(0);
+  });
+});
+
+describe("GameLogPanel", () => {
+  it("should create a GameLogPanel instance", () => {
+    const panel = new GameLogPanel();
+    expect(panel).toBeDefined();
+  });
+
+  it("should mount and unmount from DOM", () => {
+    const panel = new GameLogPanel();
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+
+    panel.mount(parent);
+    const panelEl = document.getElementById("game-log-panel");
+    expect(panelEl).not.toBeNull();
+
+    panel.unmount();
+    const removedEl = document.getElementById("game-log-panel");
+    expect(removedEl).toBeNull();
+
+    document.body.removeChild(parent);
+  });
+
+  it("should format card:played event", () => {
+    const panel = new GameLogPanel();
+    const parent = document.createElement("div");
+    panel.mount(parent);
+    panel.setTurn(3);
+
+    const event: GameEvent = {
+      id: "ev_1",
+      type: EventType.CARD_PLAYED,
+      data: { cardType: "sha", cardId: "inst_sha_1", targets: ["p2"] },
+      source: "玩家A",
+      timestamp: Date.now(),
+      stackDepth: 1,
+    };
+
+    panel.addEvent(event);
+    const entries = panel.getEntries();
+
+    expect(entries.length).toBeGreaterThanOrEqual(1);
+    expect(entries[entries.length - 1].category).toBe("card");
+    expect(entries[entries.length - 1].turn).toBe(3);
+  });
+
+  it("should format damage:dealt event", () => {
+    const panel = new GameLogPanel();
+    const parent = document.createElement("div");
+    panel.mount(parent);
+
+    const event: GameEvent = {
+      id: "ev_dmg",
+      type: EventType.DAMAGE_DEALT,
+      data: { amount: 1 },
+      source: "p1",
+      timestamp: Date.now(),
+      stackDepth: 1,
+      target: "p2",
+    };
+
+    panel.addEvent(event);
+    const entries = panel.getEntries();
+
+    expect(entries.length).toBeGreaterThanOrEqual(1);
+    expect(entries[entries.length - 1].category).toBe("damage");
+  });
+
+  it("should format heal events", () => {
+    const panel = new GameLogPanel();
+    const parent = document.createElement("div");
+    panel.mount(parent);
+
+    const event: GameEvent = {
+      id: "ev_heal",
+      type: EventType.HEAL_RECEIVED,
+      data: { amount: 1 },
+      source: "p1",
+      timestamp: Date.now(),
+      stackDepth: 1,
+    };
+
+    panel.addEvent(event);
+    const entries = panel.getEntries();
+
+    expect(entries.length).toBeGreaterThanOrEqual(1);
+    expect(entries[entries.length - 1].category).toBe("heal");
+  });
+
+  it("should format discard events", () => {
+    const panel = new GameLogPanel();
+    const parent = document.createElement("div");
+    panel.mount(parent);
+
+    const event: GameEvent = {
+      id: "ev_disc",
+      type: EventType.DISCARD_COMPLETED,
+      data: { discardedCards: ["inst_sha_1", "inst_shan_1"] },
+      source: "p1",
+      timestamp: Date.now(),
+      stackDepth: 1,
+    };
+
+    panel.addEvent(event);
+    const entries = panel.getEntries();
+
+    expect(entries.length).toBeGreaterThanOrEqual(1);
+    expect(entries[entries.length - 1].category).toBe("discard");
+  });
+
+  it("should format turn:start events", () => {
+    const panel = new GameLogPanel();
+    const parent = document.createElement("div");
+    panel.mount(parent);
+    panel.setTurn(2);
+
+    const event: GameEvent = {
+      id: "ev_turn",
+      type: EventType.TURN_START,
+      source: "p1",
+      timestamp: Date.now(),
+      stackDepth: 1,
+    };
+
+    panel.addEvent(event);
+    const entries = panel.getEntries();
+
+    expect(entries.length).toBeGreaterThanOrEqual(1);
+    expect(entries[entries.length - 1].category).toBe("turn");
+  });
+
+  it("should clear entries", () => {
+    const panel = new GameLogPanel();
+    const parent = document.createElement("div");
+    panel.mount(parent);
+
+    const event: GameEvent = {
+      id: "ev",
+      type: EventType.GAME_START,
+      timestamp: Date.now(),
+      stackDepth: 1,
+    };
+
+    panel.addEvent(event);
+    expect(panel.getEntries().length).toBe(1);
+
+    panel.clear();
+    expect(panel.getEntries().length).toBe(0);
+  });
+
+  it("should limit entries to 200", () => {
+    const panel = new GameLogPanel();
+    const parent = document.createElement("div");
+    panel.mount(parent);
+
+    for (let i = 0; i < 250; i++) {
+      panel.addEvent({
+        id: `ev_${i}`,
+        type: EventType.GAME_START,
+        timestamp: Date.now(),
+        stackDepth: 1,
+      });
+    }
+
+    expect(panel.getEntries().length).toBeLessThanOrEqual(200);
+  });
+});
+
+describe("OpponentPanel", () => {
+  it("should create an OpponentPanel instance", () => {
+    const panel = new OpponentPanel();
+    expect(panel).toBeDefined();
+  });
+
+  it("should mount to DOM", () => {
+    const panel = new OpponentPanel();
+    const parent = document.createElement("div");
+    panel.mount(parent);
+
+    expect(parent.children.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("should render opponent info", () => {
+    const panel = new OpponentPanel();
+    const parent = document.createElement("div");
+    panel.mount(parent);
+
+    const opponents: OpponentInfo[] = [
+      {
+        playerId: "p2",
+        name: "AI-1",
+        health: 3,
+        maxHealth: 4,
+        handCount: 5,
+        isCurrentTurn: false,
+        seatIndex: 1,
+        isAlive: true,
+        equipment: ["诸葛连弩"],
+        role: "rebel",
+        roleRevealed: false,
+      },
+    ];
+
+    panel.render(opponents);
+
+    expect(parent.textContent).toContain("AI-1");
+    expect(parent.textContent).toContain("手牌: 5");
+  });
+
+  it("should show dead player as grayed out", () => {
+    const panel = new OpponentPanel();
+    const parent = document.createElement("div");
+    panel.mount(parent);
+
+    const opponents: OpponentInfo[] = [
+      {
+        playerId: "p2",
+        name: "阵亡玩家",
+        health: 0,
+        maxHealth: 4,
+        handCount: 0,
+        isCurrentTurn: false,
+        seatIndex: 1,
+        isAlive: false,
+        equipment: [],
+        roleRevealed: false,
+      },
+    ];
+
+    panel.render(opponents);
+
+    expect(parent.textContent).toContain("阵亡玩家");
+    expect(parent.children.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("should highlight current turn player", () => {
+    const panel = new OpponentPanel();
+    const parent = document.createElement("div");
+    panel.mount(parent);
+
+    const opponents: OpponentInfo[] = [
+      {
+        playerId: "p2",
+        name: "当前行动",
+        health: 4,
+        maxHealth: 4,
+        handCount: 4,
+        isCurrentTurn: true,
+        seatIndex: 1,
+        isAlive: true,
+        equipment: [],
+        roleRevealed: false,
+      },
+    ];
+
+    panel.render(opponents);
+
+    expect(parent.textContent).toContain("当前行动");
+  });
+
+  it("should show revealed role", () => {
+    const panel = new OpponentPanel();
+    const parent = document.createElement("div");
+    panel.mount(parent);
+
+    const opponents: OpponentInfo[] = [
+      {
+        playerId: "p1",
+        name: "主公",
+        health: 4,
+        maxHealth: 4,
+        handCount: 4,
+        isCurrentTurn: false,
+        seatIndex: 0,
+        isAlive: true,
+        equipment: [],
+        role: "lord",
+        roleRevealed: true,
+      },
+    ];
+
+    panel.render(opponents);
+
+    expect(parent.textContent).toContain("主公");
+  });
+});
+
+describe("ResponseDialog", () => {
+  it("should create a ResponseDialog instance", () => {
+    const dialog = new ResponseDialog();
+    expect(dialog).toBeDefined();
+    expect(typeof dialog.prompt).toBe("function");
+  });
+
+  it("should return pass when no cards available", async () => {
+    const dialog = new ResponseDialog();
+    const result = await dialog.prompt({
+      title: "测试",
+      message: "无可用卡牌",
+      availableCards: [],
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.choice).toBe("pass");
+  });
+
+  it("should dismiss properly", () => {
+    const dialog = new ResponseDialog();
+    expect(() => dialog.dismiss()).not.toThrow();
+  });
+});
+
+describe("DiscardDialog", () => {
+  it("should create a DiscardDialog instance", () => {
+    const dialog = new DiscardDialog();
+    expect(dialog).toBeDefined();
+  });
+
+  it("should return all cards when discardCount >= available", async () => {
+    const dialog = new DiscardDialog();
+
+    const result = await dialog.prompt({
+      title: "弃牌",
+      message: "请选择",
+      availableCards: [
+        { id: "c1", name: "杀", category: "basic", type: "sha" },
+        { id: "c2", name: "闪", category: "basic", type: "shan" },
+      ],
+      discardCount: 2,
+    });
+
+    expect(result).toEqual(["c1", "c2"]);
+  });
+
+  it("should return empty array when no cards available", async () => {
+    const dialog = new DiscardDialog();
+
+    const result = await dialog.prompt({
+      title: "弃牌",
+      message: "无牌可弃",
+      availableCards: [],
+      discardCount: 2,
+    });
+
+    expect(result).toEqual([]);
+  });
+
+  it("should dismiss properly", () => {
+    const dialog = new DiscardDialog();
+    expect(() => dialog.dismiss()).not.toThrow();
   });
 });
