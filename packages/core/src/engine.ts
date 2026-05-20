@@ -301,7 +301,19 @@ export class Game {
   }
 
   private autoSelectDiscardCards(handCards: CardInstanceId[], excess: number): CardInstanceId[] {
-    return handCards.slice(0, excess);
+    const CARD_VALUE_ORDER: Record<string, number> = {
+      jiu: 1, sha: 2, shan: 3, trick: 4, equipment: 5, tao: 99,
+    };
+
+    const sorted = [...handCards].sort((a, b) => {
+      const aType = a.replace(/^inst_/, "").replace(/_\d+$/, "");
+      const bType = b.replace(/^inst_/, "").replace(/_\d+$/, "");
+      const aVal = CARD_VALUE_ORDER[aType] ?? 50;
+      const bVal = CARD_VALUE_ORDER[bType] ?? 50;
+      return aVal - bVal;
+    });
+
+    return sorted.slice(0, excess);
   }
 
   /**

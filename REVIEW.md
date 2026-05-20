@@ -1289,4 +1289,53 @@
 ### 5. 自审结论
 
 **✅ 全部通过，可以提交。**
-    73|    73|
+
+---
+
+## TASK-038 自审记录
+
+**自审人**: Trae SOLO
+**日期**: 2026-05-19
+**关联任务**: TASK-038（架构一致性与安全加固）
+
+### 1. 构建验证
+
+| 步骤 | 状态 |
+|------|------|
+| `pnpm build` | ✅ 全部通过（8 packages） |
+| `pnpm test` | ✅ 670/670 全部通过 |
+| `pnpm lint` | ✅ 0 issues |
+
+### 2. 代码自审清单
+
+| # | 审查项 | 结果 | 说明 |
+|---|--------|------|------|
+| 1 | 无 `any` 类型 | ✅ | 新增代码无 `: any` 注释 |
+| 2 | 事件驱动状态变更 | ✅ | `turnNumber++` 仅在 state.ts `TURN_END` handler 中通过 emitAndApply 触发 |
+| 3 | catch 有日志 | ✅ | 沙箱错误通过 console.error 记录 |
+| 4 | 无 innerHTML XSS | ✅ | DiscardDialog 使用 textContent，无 innerHTML |
+| 5 | 测试覆盖 | ✅ | 全部现有测试通过（670 tests） |
+
+### 3. 变更文件清单
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `packages/core/src/effectExecutor.ts` | 修改 | 加固沙箱：新增 setTimeout/setInterval/location/navigator 等 9 个全局变量遮蔽 |
+| `packages/core/src/engine.ts` | 修改 | `autoSelectDiscardCards` 智能弃牌策略（酒→杀→闪→锦囊→装备→桃） |
+| `apps/web/src/DiscardDialog.ts` | 修改 | 增强 UI：显示卡牌花色点数、弃牌优先级提示、类型色标 |
+
+### 4. 验收标准验证
+
+| 标准 | 状态 | 证据 |
+|------|------|------|
+| 清理未使用的 CardDefinition 类型导入 | ✅ | 全部 CardDefinition 导入均已使用 |
+| validateCardId/validateCharId 清理 | ✅ | 已在 editor/renderer.ts:1,125,187 和 state.ts:2,72,79 中使用 |
+| 删除 _applyDamage 残留代码 | ✅ | 代码库中无 _applyDamage 残留（仅 TASKS.md/REVIEW.md 中有历史记录） |
+| 修复事件重复触发 | ✅ | endTurn 中无手动 turnNumber++，全部通过 emitAndApply 事件驱动 |
+| 加固效果脚本沙箱安全 | ✅ | 新增 9 个 API 遮蔽（setTimeout、setInterval、location 等） |
+| 卡组导入/导出添加名称输入框 | ✅ | editor 已有 deckName 输入框、导出含 deckName、导入读取 manifest.name |
+| 优化弃牌选择 UI | ✅ | 智能弃牌策略 + UI 显示花色点数 + 值提示 |
+
+### 5. 自审结论
+
+**✅ 全部通过，可以提交。**

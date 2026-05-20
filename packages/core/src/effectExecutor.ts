@@ -120,6 +120,14 @@ export class EffectExecutor {
         const document = undefined;
         const window = undefined;
         const self = undefined;
+        const setTimeout = undefined;
+        const setInterval = undefined;
+        const clearTimeout = undefined;
+        const clearInterval = undefined;
+        const location = undefined;
+        const localStorage = undefined;
+        const sessionStorage = undefined;
+        const navigator = undefined;
         return (async () => { ${effect.script} })();
       `;
       const asyncFn = new Function("context", sandboxedScript);

@@ -111,20 +111,63 @@ export class DiscardDialog {
       overflow-y: auto;
     `;
 
+    const CARD_VALUE_LABELS: Record<string, string> = {
+      jiu: "优先弃",
+      sha: "可弃",
+      shan: "可保留",
+      trick: "可保留",
+      equipment: "可保留",
+      tao: "尽量保留",
+    };
+
+    const CARD_VALUE_COLORS: Record<string, string> = {
+      jiu: "#884422",
+      sha: "#665544",
+      shan: "#446644",
+      trick: "#444466",
+      equipment: "#445544",
+      tao: "#664444",
+    };
+
     for (const card of config.availableCards) {
       const cardEl = document.createElement("div");
+      const bgColor = CARD_VALUE_COLORS[card.type] ?? "#2a2a3e";
       cardEl.style.cssText = `
-        padding: 8px 14px;
-        background: #2a2a3e;
-        border: 2px solid #444;
+        padding: 6px 12px;
+        background: ${bgColor};
+        border: 2px solid #555;
         border-radius: 6px;
         cursor: pointer;
         color: #e0d5c0;
-        font-size: 14px;
+        font-size: 13px;
         transition: all 0.2s;
         user-select: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        min-width: 56px;
       `;
-      cardEl.textContent = card.name;
+
+      const nameLine = document.createElement("span");
+      nameLine.textContent = card.name;
+      nameLine.style.cssText = "font-weight:bold;font-size:14px;";
+
+      const suitLine = document.createElement("span");
+      suitLine.style.cssText = "font-size:10px;color:#aaa;";
+      if (card.suit && card.number) {
+        const suitColor = card.suit === "heart" || card.suit === "diamond" ? "#ff4444" : "#aaa";
+        const suitSymbol: Record<string, string> = { heart: "♥", diamond: "♦", spade: "♠", club: "♣" };
+        suitLine.textContent = `${suitSymbol[card.suit] ?? card.suit}${card.number}`;
+        suitLine.style.color = suitColor;
+      }
+
+      const hintLine = document.createElement("span");
+      hintLine.textContent = CARD_VALUE_LABELS[card.type] ?? "";
+      hintLine.style.cssText = "font-size:9px;opacity:0.6;";
+      cardEl.appendChild(nameLine);
+      if (suitLine.textContent) cardEl.appendChild(suitLine);
+      cardEl.appendChild(hintLine);
 
       cardEl.onclick = () => {
         if (this.selectedCardIds.has(card.id)) {
