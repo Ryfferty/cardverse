@@ -134,7 +134,7 @@ export class GameLauncher {
     this.game.initPhases(phases);
     await this.game.start();
 
-    const hasRoles = this.manifestHasRoles(loaded.manifest);
+    const hasRoles = this.rulesHaveIdentities(rules);
     if (hasRoles) {
       const roleAssignments = this.game.assignRoles();
       const roleNameMap: Record<string, string> = {
@@ -158,8 +158,11 @@ export class GameLauncher {
     }
 
     const humanPid = this.getHumanPlayerId();
-    const healthValue = this.game.resources.getValue(humanPid, "health") ?? 4;
-    const maxHealthValue = this.game.resources.getValue(humanPid, "maxHealth") ?? 4;
+    const primaryResource = this.resolvePrimaryResource(resources);
+    const healthValue = this.game.resources.getValue(humanPid, primaryResource) ?? 0;
+    const maxHealthValue = this.game.resources.getValue(humanPid, "maxHealth")
+      ?? this.game.resources.getValue(humanPid, "chips")
+      ?? healthValue;
 
     this.ui = new GameUI();
     await this.ui.init(appRoot, {
@@ -272,6 +275,8 @@ export class GameLauncher {
         phases: rules.phases,
         resources: rules.resources,
         turnOrder: (rules.turnOrder as string) ?? "clockwise",
+        identities: rules.identities,
+        gameFlow: rules.gameFlow,
       },
       cards: allCards,
       characters,
@@ -290,13 +295,15 @@ export class GameLauncher {
     return Math.min(Math.max(4, min), max);
   }
 
-  private manifestHasRoles(manifest: Record<string, unknown>): boolean {
-    const rulesField = manifest.rules as Record<string, unknown> | undefined;
-    if (rulesField && typeof rulesField.source === "string") {
-      return true;
-    }
-    const identities = (rulesField as Record<string, unknown>)?.identities;
+  private rulesHaveIdentities(rules: Record<string, unknown>): boolean {
+    const identities = rules.identities;
     return Array.isArray(identities) && identities.length > 0;
+  }
+
+  private resolvePrimaryResource(resources: ResourceDefinition[]): string {
+    if (resources.some((r) => r.id === "health")) return "health";
+    if (resources.some((r) => r.id === "chips")) return "chips";
+    return resources[0]?.id ?? "health";
   }
 
   private getInitialHandSize(manifest: Record<string, unknown>): number {
@@ -384,8 +391,8 @@ export class GameLauncher {
     const handCardIds = handZone?.cards ?? [];
     const handCards = this.buildHandCards(handCardIds);
 
-    const health = this.game.resources.getValue(pid, "health") ?? 0;
-    const maxHealth = this.game.resources.getValue(pid, "maxHealth") ?? 0;
+    const health = this.game.resources.getValue(pid, "health") ?? this.game.resources.getValue(pid, "chips") ?? 0;
+    const maxHealth = this.game.resources.getValue(pid, "maxHealth") ?? this.game.resources.getValue(pid, "chips") ?? health;
     const currentTurn = state.currentTurn;
     const phaseIndex = currentTurn?.phaseIndex ?? 0;
     const currentPhaseId = this.phases[phaseIndex % this.phases.length]?.id ?? "play";
@@ -407,8 +414,8 @@ export class GameLauncher {
       const p = state.players.get(opid);
       if (!p) continue;
 
-      const hp = this.game.resources.getValue(opid, "health") ?? 0;
-      const mhp = this.game.resources.getValue(opid, "maxHealth") ?? 0;
+      const hp = this.game.resources.getValue(opid, "health") ?? this.game.resources.getValue(opid, "chips") ?? 0;
+      const mhp = this.game.resources.getValue(opid, "maxHealth") ?? this.game.resources.getValue(opid, "chips") ?? hp;
       const equipCardIds = this.game.getEquipmentCards(opid);
       const equipNames = equipCardIds.map((eid) => {
         const parts = eid.split("_");
@@ -493,8 +500,8 @@ export class GameLauncher {
         playerId: p.id,
         handCardIds: handZone?.cards ?? [],
         handCount: p.handCount,
-        health: this.game.resources.getValue(p.id, "health") ?? 0,
-        maxHealth: this.game.resources.getValue(p.id, "maxHealth") ?? 0,
+        health: this.game.resources.getValue(p.id, "health") ?? this.game.resources.getValue(p.id, "chips") ?? 0,
+        maxHealth: this.game.resources.getValue(p.id, "maxHealth") ?? this.game.resources.getValue(p.id, "chips") ?? 0,
         faction,
         alive: p.status === "alive",
         seatIndex: this.game.getPlayerSeatIndex(pid),

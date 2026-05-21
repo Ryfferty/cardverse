@@ -44,7 +44,7 @@ export class MainMenu {
             continue;
           }
           deckInfos.push({
-            id: String(m.id ?? id),
+            id: id,
             name: String(m.name ?? id),
             description: String(m.description ?? ""),
             minPlayers: Number(m.minPlayers ?? 2),
